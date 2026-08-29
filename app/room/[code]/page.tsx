@@ -227,6 +227,22 @@ export default function LobbyPage() {
     }
   }
 
+  async function leaveRoom() {
+    if (!me || isHost) return;
+    const ok = window.confirm("هل تريد الخروج من الغرفة؟");
+    if (!ok) return;
+    const supabase = getSupabaseBrowserClient();
+    const { error: leaveError } = await supabase
+      .from("players")
+      .delete()
+      .eq("id", me.id);
+    if (leaveError) {
+      setError("تعذّر الخروج: " + leaveError.message);
+      return;
+    }
+    router.push("/");
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center text-muted text-sm">
@@ -329,17 +345,30 @@ export default function LobbyPage() {
       <div className="flex-1" />
 
       {!isHost && me && (
-        <button
-          onClick={toggleReady}
-          className="w-full rounded-xl py-3 text-sm font-bold mb-3"
-          style={{
-            background: me.is_ready ? "transparent" : "#C9A227",
-            border: me.is_ready ? "1px solid #2A3342" : "none",
-            color: me.is_ready ? "#8A93A6" : "#0B0E14",
-          }}
-        >
-          {me.is_ready ? "إلغاء الاستعداد" : "مستعد"}
-        </button>
+        <>
+          <button
+            onClick={toggleReady}
+            className="w-full rounded-xl py-3 text-sm font-bold mb-3"
+            style={{
+              background: me.is_ready ? "transparent" : "#C9A227",
+              border: me.is_ready ? "1px solid #2A3342" : "none",
+              color: me.is_ready ? "#8A93A6" : "#0B0E14",
+            }}
+          >
+            {me.is_ready ? "إلغاء الاستعداد" : "مستعد"}
+          </button>
+          <button
+            onClick={leaveRoom}
+            className="w-full rounded-xl py-3 text-xs font-bold"
+            style={{
+              background: "transparent",
+              border: "1px solid #2A3342",
+              color: "#8A93A6",
+            }}
+          >
+            الخروج من الغرفة
+          </button>
+        </>
       )}
 
       {isHost && (
