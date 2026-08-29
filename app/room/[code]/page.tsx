@@ -62,11 +62,17 @@ export default function LobbyPage() {
       }
       setRoom(roomData as RoomRow);
 
-      const { data: playersData } = await supabase
+      const { data: playersData, error: playersError } = await supabase
         .from("players")
         .select("id, name, is_host, is_ready, is_alive, auth_id")
         .eq("room_id", roomData.id)
         .order("created_at", { ascending: true });
+
+      if (playersError) {
+        setError("تعذّر تحميل اللاعبين: " + playersError.message);
+        setLoading(false);
+        return;
+      }
 
       setPlayers((playersData as PlayerRow[]) || []);
     } catch (e: any) {
