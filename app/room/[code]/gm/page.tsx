@@ -35,6 +35,7 @@ export default function GmDashboardPage() {
   const [isHost, setIsHost] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -123,6 +124,37 @@ export default function GmDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id]);
 
+  async function toggleAlive(player: PlayerWithRole) {
+    if (!room) return;
+    const willKill = player.is_alive;
+    const ok = window.confirm(
+      willKill
+        ? `هل تريد إخراج "${player.name}" من اللعبة؟`
+        : `هل تريد إعادة "${player.name}" للحياة؟`
+    );
+    if (!ok) return;
+
+    const supabase = getSupabaseBrowserClient();
+    const { error: updateError } = await supabase
+      .from("players")
+      .update({ is_alive: !player.is_alive })
+      .eq("id", player.id);
+
+    if (updateError) {
+      setActionError("تعذّر تنفيذ العملية: " + updateError.message);
+      return;
+    }
+    setActionError("");
+
+    await supabase.from("game_events").insert({
+      room_id: room.id,
+      round_number: room.round_number,
+      event_type: willKill ? "gm_kill" : "gm_revive",
+      payload: { player_id: player.id, player_name: player.name },
+      gm_only: true,
+    });
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center text-muted text-sm">
@@ -161,6 +193,10 @@ export default function GmDashboardPage() {
         </div>
       </div>
 
+      {actionError && (
+        <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
+      )}
+
       <div className="flex flex-col gap-1.5">
         {players.map((p) => {
           const def = p.role ? ROLES[p.role] : null;
@@ -194,6 +230,31 @@ export default function GmDashboardPage() {
             </div>
           );
         })}
+      </div>
+
+      <div className="text-[10px] tracking-[0.2em] text-muted mt-8 mb-2 text-center">
+        ⚙️ أدوات الحكم
+      </div>
+      <div className="flex flex-col gap-1.5">
+        {players.map((p) => (
+          <div
+            key={p.id + "-tool"}
+            className="flex items-center justify-between rounded-lg px-3 py-2 bg-panel border border-border"
+          >
+            <span className="text-xs text-cream">{p.name}</span>
+            <button
+              onClick={() => toggleAlive(p)}
+              className="text-[11px] px-3 py-1.5 rounded-full font-bold"
+              style={{
+                background: p.is_alive ? "#8B263522" : "#2F6F6222",
+                color: p.is_alive ? "#C0392B" : "#3FA37A",
+                border: `1px solid ${p.is_alive ? "#8B263566" : "#2F6F6266"}`,
+              }}
+            >
+              {p.is_alive ? "إخراج من اللعبة" : "إعادة إحياء"}
+            </button>
+          </div>
+        ))}
       </div>
     </main>
   );
