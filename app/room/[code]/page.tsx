@@ -1,188 +1,154 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ensureAnonymousSession,
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
+import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
 
-interface RoomRow {
-  id: string;
-  code: string;
-  status: string;
-  target_player_count: number;
-  host_auth_id: string;
-}
-
-interface PlayerRow {
-  id: string;
+interface TeamMember {
+  player_id: string;
   name: string;
-  is_host: boolean;
-  is_ready: boolean;
-  is_alive: boolean;
-  auth_id: string;
+  role: RoleKey;
 }
 
-export default function LobbyPage() {
+export default function RoleRevealPage() {
   const params = useParams();
   const router = useRouter();
   const code = String(params.code || "").toUpperCase();
 
-  const [room, setRoom] = useState<RoomRow | null>(null);
-  const [players, setPlayers] = useState<PlayerRow[]>([]);
-  const [myAuthId, setMyAuthId] = useState<string | null>(null);
-  const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [role, setRole] = useState<RoleKey | null>(null);
+  const [team, setTeam] = useState<TeamKey | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [closing, setClosing] = useState(false);
-  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const hostPlayer = players.find((p) => p.is_host) || null;
-  const regularPlayers = players.filter((p) => !p.is_host);
-  const me = players.find((p) => p.auth_id === myAuthId) || null;
-  const isHost = !!me?.is_host;
+  const [drag, setDrag] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const allReady =
-    regularPlayers.length > 0 && regularPlayers.every((p) => p.is_ready);
-  const isFull = room ? regularPlayers.length >= room.target_player_count : false;
-  const canStart = allReady && isFull;
+  const [showTeam, setShowTeam] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const session = await ensureAnonymousSession();
-      setMyAuthId(session?.user.id ?? null);
+  useEffect(() => {
+    (async () => {
+      try {
+        await ensureAnonymousSession();
+        const supabase = getSupabaseBrowserClient();
 
-      const supabase = getSupabaseBrowserClient();
+        const { data: room, error: roomError } = await supabase
+          .from("rooms")
+          .select("id")
+          .eq("code", code)
+          .maybeSingle();
 
-      const { data: roomData, error: roomError } = await supabase
-        .from("rooms")
-        .select("id, code, status, target_player_count, host_auth_id")
-        .eq("code", code)
-        .maybeSingle();
+        if (roomError || !room) {
+          setError("لم يتم العثور على الغرفة.");
+          setLoading(false);
+          return;
+        }
+        setRoomId(room.id);
 
-      if (roomError || !roomData) {
-        setError("لم يتم العثور على الغرفة. ربما تم إغلاقها.");
+        const { data, error: rpcError } = await supabase.rpc("get_my_role", {
+          p_room_id: room.id,
+        });
+
+        if (rpcError) {
+          setError("تعذّر جلب دورك: " + rpcError.message);
+          setLoading(false);
+          return;
+        }
+
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) {
+          setError("لم يتم توزيع دور لك بعد.");
+          setLoading(false);
+          return;
+        }
+
+        setRole(row.role as RoleKey);
+        setTeam(row.team as TeamKey);
+      } catch (e: any) {
+        setError(e.message || "حدث خطأ غير متوقع.");
+      } finally {
         setLoading(false);
-        return;
       }
-      setRoom(roomData as RoomRow);
-
-      const { data: playersData, error: playersError } = await supabase
-        .from("players")
-        .select("id, name, is_host, is_ready, is_alive, auth_id")
-        .eq("room_id", roomData.id)
-        .order("created_at", { ascending: true });
-
-      if (playersError) {
-        setError("تعذّر تحميل اللاعبين: " + playersError.message);
-        setLoading(false);
-        return;
-      }
-
-      setPlayers((playersData as PlayerRow[]) || []);
-      const mine = (playersData as PlayerRow[] | null)?.find(
-        (p) => p.auth_id === session?.user.id
-      );
-      if (mine) setMyPlayerId(mine.id);
-    } catch (e: any) {
-      setError(e.message || "حدث خطأ غير متوقع.");
-    } finally {
-      setLoading(false);
-    }
+    })();
   }, [code]);
 
+  // إخفاء فوري لما اللاعب يغادر الصفحة أو يفتح تطبيق ثاني (قسم 94-95 بالمواصفات)
   useEffect(() => {
-    load();
-  }, [load]);
+    function handleVisibility() {
+      if (document.hidden) {
+        setRevealed(false);
+        setDrag(0);
+        setShowTeam(false);
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
 
-  // نبضة حياة: تحدّث كل 20 ثانية طالما الصفحة مفتوحة — تُستخدم لتنظيف الغرف المهجورة
-  useEffect(() => {
-    if (!myPlayerId) return;
-    const supabase = getSupabaseBrowserClient();
+  const onDown = useCallback(
+    (e: React.MouseEvent | React.TouchEvent) => {
+      if (revealed) return;
+      dragging.current = true;
+      const clientX =
+        "clientX" in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+      startX.current = clientX;
+    },
+    [revealed]
+  );
 
-    const ping = () => {
-      supabase
-        .from("players")
-        .update({ last_seen_at: new Date().toISOString() })
-        .eq("id", myPlayerId)
-        .then(() => {});
-    };
+  const onMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    if (!dragging.current || !trackRef.current) return;
+    const clientX = "clientX" in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
+    const width = trackRef.current.offsetWidth || 1;
+    const delta = Math.abs(clientX - startX.current);
+    const pct = Math.min(1, delta / (width - 40));
+    setDrag(pct);
+  }, []);
 
-    ping();
-    heartbeatRef.current = setInterval(ping, 20000);
-    return () => {
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-    };
-  }, [myPlayerId]);
+  const onUp = useCallback(() => {
+    if (!dragging.current) return;
+    dragging.current = false;
+    if (drag >= 0.98) {
+      setRevealed(true);
+      setDrag(1);
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = setTimeout(() => {
+        setRevealed(false);
+        setDrag(0);
+      }, 3000);
+    } else {
+      setDrag(0);
+    }
+  }, [drag]);
 
-  // Realtime: لاعبين + حالة الغرفة (بما فيها الحذف)
-  useEffect(() => {
-    if (!room) return;
-    const supabase = getSupabaseBrowserClient();
-
-    const channel = supabase
-      .channel(`room-${room.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "players",
-          filter: `room_id=eq.${room.id}`,
-        },
-        () => load()
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "rooms",
-          filter: `id=eq.${room.id}`,
-        },
-        () => {
-          setError("تم إغلاق هذه الغرفة.");
-          setRoom(null);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room?.id]);
-
-  async function toggleReady() {
-    if (!me) return;
-    const supabase = getSupabaseBrowserClient();
-    await supabase
-      .from("players")
-      .update({ is_ready: !me.is_ready })
-      .eq("id", me.id);
+  function hideNow() {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    setRevealed(false);
+    setDrag(0);
+    setShowTeam(false);
   }
 
-  async function closeRoom() {
-    if (!room || !isHost) return;
-    const ok = window.confirm(
-      "هل أنت متأكد من إغلاق الغرفة؟ سيتم حذف كل بيانات هذه الجولة نهائيًا لجميع اللاعبين."
-    );
-    if (!ok) return;
-
-    setClosing(true);
+  async function loadTeam() {
+    if (!roomId) return;
+    setTeamLoading(true);
+    setShowTeam(true);
     const supabase = getSupabaseBrowserClient();
-    const { error: delError } = await supabase
-      .from("rooms")
-      .delete()
-      .eq("id", room.id);
-
-    if (delError) {
-      setError("تعذّر إغلاق الغرفة: " + delError.message);
-      setClosing(false);
-      return;
-    }
-    router.push("/");
+    const { data, error } = await supabase.rpc("get_mafia_team", {
+      p_room_id: roomId,
+    });
+    if (!error && data) setTeamMembers(data as TeamMember[]);
+    setTeamLoading(false);
   }
 
   if (loading) {
@@ -193,141 +159,159 @@ export default function LobbyPage() {
     );
   }
 
-  if (error || !room) {
+  if (error || !role) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-6 gap-4">
         <p className="text-mafia text-sm text-center">{error}</p>
         <button
-          onClick={() => router.push("/")}
+          onClick={() => router.push(`/room/${code}`)}
           className="text-xs text-gold border border-gold rounded-full px-4 py-2"
         >
-          رجوع للرئيسية
+          رجوع للغرفة
         </button>
       </main>
     );
   }
 
-  const total = room.target_player_count;
-  const slots = Array.from({ length: total }, (_, i) => regularPlayers[i] || null);
+  const def = ROLES[role];
+  const isMafiaTeam = team === "mafia";
+  const roleColor = isMafiaTeam ? "#8B2635" : "#2F6F62";
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
-      {/* صندوق الحكم — منفصل تمامًا عن عدّاد اللاعبين */}
-      {hostPlayer && (
-        <div className="flex justify-center mb-5">
-          <div
-            className="flex items-center gap-2 rounded-full px-5 py-2"
-            style={{ background: "#1E1508", border: "1px solid #C9A227" }}
-          >
-            <span className="text-base">👑</span>
-            <span className="text-sm font-bold" style={{ color: "#C9A227" }}>
-              الحكم
-            </span>
-            <span className="text-sm" style={{ color: "#EDEAE0" }}>
-              {hostPlayer.name}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* العدّاد بالنص فوق — dir=ltr لتفادي مشكلة انعكاس الأرقام بالـ RTL */}
-      <div className="text-center mb-6">
+    <main
+      className="min-h-screen flex flex-col select-none"
+      onMouseMove={onMove}
+      onMouseUp={onUp}
+      onMouseLeave={onUp}
+      onTouchMove={onMove}
+      onTouchEnd={onUp}
+    >
+      <div className="px-5 pt-8 pb-3 text-center">
         <div className="text-[10px] tracking-[0.3em] text-muted mb-1">
-          عدد اللاعبين
+          تم توزيع دورك
         </div>
+        <div className="font-display text-2xl text-cream">بطاقتك</div>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center px-6">
         <div
-          dir="ltr"
-          className="font-display text-4xl text-gold inline-block"
-        >
-          {regularPlayers.length}
-          <span className="text-muted text-2xl mx-1">/</span>
-          {total}
-        </div>
-      </div>
-
-      {/* شبكة المربعات — لاعبين فقط، بدون الحكم */}
-      <div className="grid grid-cols-4 gap-2 mb-8">
-        {slots.map((p, i) => {
-          const filled = !!p;
-          const isMe = p?.auth_id === myAuthId;
-          return (
-            <div
-              key={i}
-              className="aspect-square rounded-lg flex items-center justify-center text-center px-1"
-              style={{
-                background: filled ? "#141B26" : "transparent",
-                border: `1px solid ${
-                  isMe ? "#C9A227" : filled ? "#2A3342" : "#1A2230"
-                }`,
-              }}
-            >
-              {filled ? (
-                <div className="flex flex-col items-center gap-1">
-                  <span
-                    className="text-[10px] leading-tight break-all"
-                    style={{ color: isMe ? "#C9A227" : "#EDEAE0" }}
-                  >
-                    {p!.name}
-                  </span>
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{
-                      background: p!.is_ready ? "#3FA37A" : "#C0392B",
-                    }}
-                  />
-                </div>
-              ) : (
-                <span className="text-border text-lg">·</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex-1" />
-
-      {!isHost && me && (
-        <button
-          onClick={toggleReady}
-          className="w-full rounded-xl py-3 text-sm font-bold mb-3"
+          className="w-full max-w-xs aspect-[3/4] rounded-2xl overflow-hidden relative flex items-center justify-center"
           style={{
-            background: me.is_ready ? "transparent" : "#C9A227",
-            border: me.is_ready ? "1px solid #2A3342" : "none",
-            color: me.is_ready ? "#8A93A6" : "#0B0E14",
+            background: revealed
+              ? `linear-gradient(160deg, ${roleColor}22, #141B26 70%)`
+              : "linear-gradient(160deg, #1A2230, #0F141C)",
+            border: `1px solid ${revealed ? roleColor + "55" : "#2A3342"}`,
+            transition: "background 0.4s ease, border-color 0.4s ease",
           }}
         >
-          {me.is_ready ? "إلغاء الاستعداد" : "مستعد"}
-        </button>
-      )}
+          {!revealed && (
+            <div className="flex flex-col items-center gap-3 opacity-90">
+              <div className="text-6xl">🎴</div>
+              <div className="text-xs text-muted">اسحب الشريط بالأسفل للكشف</div>
+            </div>
+          )}
+          {revealed && (
+            <div
+              className="flex flex-col items-center gap-3 px-6 text-center"
+              style={{
+                opacity: drag,
+                transform: `scale(${0.85 + drag * 0.15})`,
+                transition: "opacity 0.3s, transform 0.3s",
+              }}
+            >
+              <div className="text-6xl">{def.emoji}</div>
+              <div className="text-xl font-extrabold text-cream">
+                أنت {def.nameAr}
+              </div>
+              <div className="text-xs leading-relaxed" style={{ color: "#B8BFCC" }}>
+                {def.shortDescAr}
+              </div>
+            </div>
+          )}
+        </div>
 
-      {isHost && (
-        <>
-          <button
-            disabled={!canStart}
-            className="w-full rounded-xl py-3 text-sm font-bold mb-3 disabled:opacity-40"
-            style={{ background: "#8B2635", color: "#EDEAE0" }}
+        {!revealed ? (
+          <div
+            ref={trackRef}
+            className="relative w-full max-w-xs h-12 mt-6 rounded-full"
+            style={{ background: "#141B26", border: "1px solid #2A3342" }}
           >
-            {!isFull
-              ? `بانتظار اكتمال اللاعبين (${regularPlayers.length}/${total})`
-              : !allReady
-              ? "بانتظار استعداد الجميع"
-              : "بدء اللعبة"}
-          </button>
+            <div
+              className="absolute inset-y-0 right-0 rounded-full"
+              style={{
+                width: `${drag * 100}%`,
+                background: "linear-gradient(90deg, transparent, #C9A22766)",
+              }}
+            />
+            <div
+              onMouseDown={onDown}
+              onTouchStart={onDown}
+              className="absolute top-1 h-10 w-10 rounded-full grid place-items-center cursor-grab active:cursor-grabbing"
+              style={{
+                right: `calc(${drag * 100}% * 0.86)`,
+                background: "#C9A227",
+                transition: dragging.current ? "none" : "right 0.2s ease",
+              }}
+            >
+              <span style={{ color: "#0B0E14", fontSize: 14 }}>⇠</span>
+            </div>
+            <div className="absolute inset-0 grid place-items-center text-[11px] text-muted pointer-events-none">
+              اسحب للكشف
+            </div>
+          </div>
+        ) : (
+          <div className="w-full max-w-xs flex flex-col gap-2 mt-6">
+            {isMafiaTeam && !showTeam && (
+              <button
+                onClick={loadTeam}
+                className="w-full rounded-full py-3 text-sm font-bold"
+                style={{ background: "#8B2635", color: "#EDEAE0" }}
+              >
+                🔴 أعضاء فريقك
+              </button>
+            )}
+            <button
+              onClick={hideNow}
+              className="w-full rounded-full py-3 text-sm font-bold"
+              style={{
+                background: "transparent",
+                border: "1px solid #2A3342",
+                color: "#8A93A6",
+              }}
+            >
+              إخفاء
+            </button>
+          </div>
+        )}
 
-          <button
-            onClick={closeRoom}
-            disabled={closing}
-            className="w-full rounded-xl py-3 text-xs font-bold disabled:opacity-40"
-            style={{
-              background: "transparent",
-              border: "1px solid #8B2635",
-              color: "#8B2635",
-            }}
+        {showTeam && (
+          <div
+            className="w-full max-w-xs mt-4 rounded-xl p-4"
+            style={{ background: "#1E1215", border: "1px solid #8B263555" }}
           >
-            {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}
-          </button>
-        </>
-      )}
+            <div className="text-xs text-mafia mb-2 font-bold">
+              🔴 أعضاء فريقك
+            </div>
+            {teamLoading ? (
+              <p className="text-xs text-muted">جارٍ التحميل...</p>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {teamMembers.map((m) => (
+                  <div
+                    key={m.player_id}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <span className="text-cream">{m.name}</span>
+                    <span className="text-[11px] text-muted">
+                      {ROLES[m.role].nameAr}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </main>
   );
 }
