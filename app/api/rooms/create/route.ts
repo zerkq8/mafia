@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient, getAuthIdFromRequest } from "@/lib/supabase/admin";
 import { generateRoomCode } from "@/lib/secureShuffle";
+import { validateRoleCounts, CONFIGURABLE_ROLES, RoleCounts } from "@/lib/roles";
 
 export async function POST(req: Request) {
   try {
     const authId = await getAuthIdFromRequest(req);
     const body = await req.json();
-    const { hostName, targetPlayerCount } = body as {
+    const { hostName, targetPlayerCount, roleCounts } = body as {
       hostName: string;
       targetPlayerCount: number;
+      roleCounts: RoleCounts;
     };
 
     if (!hostName || hostName.trim().length < 2 || hostName.trim().length > 20) {
@@ -28,7 +30,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // تنظيف الاسم من أي محتوى HTML/سكربت
+    const counts: RoleCounts = {
+      mafia: Number(roleCounts?.mafia) || 0,
+      informer: Number(roleCounts?.informer) || 0,
+      mafia_cop: Number(roleCounts?.mafia_cop) || 0,
+      detective: Number(roleCounts?.detective) || 0,
+      doctor: Number(roleCounts?.doctor) || 0,
+      sniper: Number(roleCounts?.sniper) || 0,
+    };
+
+    const validation = validateRoleCounts(targetPlayerCount, counts);
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.message }, { status: 400 });
+    }
+
     const cleanName = hostName
       .replace(/<[^>]*>/g, "")
       .replace(/[<>"'`]/g, "")
@@ -37,7 +52,6 @@ export async function POST(req: Request) {
     const admin = getSupabaseAdminClient();
     let code = generateRoomCode();
 
-    // تجنّب أي تصادم نادر برمز الغرفة
     for (let attempt = 0; attempt < 5; attempt++) {
       const { data: existing } = await admin
         .from("rooms")
@@ -61,21 +75,26 @@ export async function POST(req: Request) {
 
     if (roomError) throw roomError;
 
-    const { data: hostPlayer, error: playerError } = await admin
-      .from("players")
-      .insert({
-        room_id: room.id,
-        auth_id: authId,
-        name: cleanName,
-        is_host: true,
-        is_ready: false,
-      })
-      .select()
-      .single();
+    const { error: hostError } = await admin.from("players").insert({
+      room_id: room.id,
+      auth_id: authId,
+      name: cleanName,
+      is_host: true,
+      is_ready: true,
+    });
+    if (hostError) throw hostError;
 
-    if (playerError) throw playerError;
+    const roleConfigRows = CONFIGURABLE_ROLES.map((role) => ({
+      room_id: room.id,
+      role,
+      count: counts[role as keyof RoleCounts],
+    }));
+    const { error: rolesError } = await admin
+      .from("role_configs")
+      .insert(roleConfigRows);
+    if (rolesError) throw rolesError;
 
-    return NextResponse.json({ room, player: hostPlayer });
+    return NextResponse.json({ room });
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "حدث خطأ غير متوقع." },
