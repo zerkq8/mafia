@@ -173,8 +173,6 @@ export default function RoleRevealPage() {
 
   const def = ROLES[role];
   const isMafiaTeam = team === "mafia";
-  const roleColor = isMafiaTeam ? "#8B2635" : "#2F6F62";
-  // الستارة تنكشف من اليمين لليسار كلما زاد curtain
   const curtainWidthPct = (1 - curtain) * 100;
 
   return (
@@ -196,22 +194,20 @@ export default function RoleRevealPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         <div
           ref={cardRef}
-          className="relative w-full max-w-xs aspect-[3/4] rounded-2xl overflow-hidden"
-          style={{ border: "1px solid #2A3342" }}
+          className="relative w-32 rounded-2xl overflow-hidden"
+          style={{ border: "1px solid #333333", aspectRatio: "3 / 4" }}
         >
-          {/* محتوى الدور — دائمًا موجود بالخلفية، تكشفه الستارة */}
+          {/* محتوى الدور — أبيض/أسود بحت لكل الأدوار بلا استثناء، حتى لا تدل الألوان على الفريق */}
           <div
             className="absolute inset-0 flex items-center justify-center"
-            style={{
-              background: `linear-gradient(160deg, ${roleColor}22, #141B26 70%)`,
-            }}
+            style={{ background: "#0A0A0A" }}
           >
-            <div className="flex flex-col items-center gap-3 px-6 text-center">
-              <div className="text-6xl">{def.emoji}</div>
-              <div className="text-xl font-extrabold text-cream">
+            <div className="flex flex-col items-center gap-2 px-3 text-center">
+              <div className="text-3xl grayscale">{def.emoji}</div>
+              <div className="text-sm font-extrabold" style={{ color: "#FFFFFF" }}>
                 أنت {def.nameAr}
               </div>
-              <div className="text-xs leading-relaxed" style={{ color: "#B8BFCC" }}>
+              <div className="text-[10px] leading-relaxed" style={{ color: "#AAAAAA" }}>
                 {def.shortDescAr}
               </div>
             </div>
@@ -222,14 +218,14 @@ export default function RoleRevealPage() {
             className="absolute inset-y-0 left-0 flex items-center justify-center"
             style={{
               width: `${curtainWidthPct}%`,
-              background: "linear-gradient(160deg, #1A2230, #0F141C)",
+              background: "#000000",
               transition: dragging.current ? "none" : "width 0.25s ease",
-              borderLeft: curtainWidthPct > 0 && curtainWidthPct < 100 ? "1px solid #C9A22755" : "none",
+              borderLeft: curtainWidthPct > 0 && curtainWidthPct < 100 ? "1px solid #FFFFFF33" : "none",
             }}
           >
             {curtainWidthPct > 15 && (
-              <div className="flex flex-col items-center gap-2 opacity-80">
-                <div className="text-3xl">🎴</div>
+              <div className="flex flex-col items-center gap-2 opacity-60">
+                <div className="text-2xl grayscale">🎴</div>
               </div>
             )}
           </div>
@@ -238,18 +234,18 @@ export default function RoleRevealPage() {
           <div
             onMouseDown={onGripDown}
             onTouchStart={onGripDown}
-            className="absolute top-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing"
+            className="absolute top-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-10"
             style={{
-              right: revealed ? "8px" : `${curtainWidthPct}%`,
-              transform: `translate(50%, -50%)`,
-              transition: dragging.current ? "none" : "right 0.25s ease",
+              left: `clamp(14px, ${curtainWidthPct}%, calc(100% - 14px))`,
+              transform: "translate(-50%, -50%)",
+              transition: dragging.current ? "none" : "left 0.25s ease",
             }}
           >
             <div
-              className="w-9 h-14 rounded-full flex items-center justify-center"
-              style={{ background: "#C9A227", boxShadow: "0 2px 8px #00000055" }}
+              className="w-7 h-11 rounded-full flex items-center justify-center"
+              style={{ background: "#FFFFFF", boxShadow: "0 2px 8px #00000088" }}
             >
-              <span style={{ color: "#0B0E14", fontSize: 12 }}>⇔</span>
+              <span style={{ color: "#000000", fontSize: 10 }}>⇔</span>
             </div>
           </div>
         </div>
@@ -257,7 +253,7 @@ export default function RoleRevealPage() {
         <p className="text-[11px] text-muted mt-4 text-center max-w-xs">
           {revealed
             ? "اسحب المقبض مرة ثانية لإخفاء دورك فورًا"
-            : "اسحب المقبض الذهبي بخفة لكشف دورك"}
+            : "اسحب المقبض بخفة لكشف دورك"}
         </p>
 
         {revealed && (
@@ -266,9 +262,9 @@ export default function RoleRevealPage() {
               <button
                 onClick={loadTeam}
                 className="w-full rounded-full py-3 text-sm font-bold"
-                style={{ background: "#8B2635", color: "#EDEAE0" }}
+                style={{ background: "#FFFFFF", color: "#000000" }}
               >
-                🔴 أعضاء فريقك
+                أعضاء فريقك
               </button>
             )}
             <button
@@ -276,8 +272,8 @@ export default function RoleRevealPage() {
               className="w-full rounded-full py-3 text-sm font-bold"
               style={{
                 background: "transparent",
-                border: "1px solid #2A3342",
-                color: "#8A93A6",
+                border: "1px solid #333333",
+                color: "#AAAAAA",
               }}
             >
               إخفاء الآن
@@ -288,10 +284,10 @@ export default function RoleRevealPage() {
         {showTeam && (
           <div
             className="w-full max-w-xs mt-4 rounded-xl p-4"
-            style={{ background: "#1E1215", border: "1px solid #8B263555" }}
+            style={{ background: "#0A0A0A", border: "1px solid #333333" }}
           >
-            <div className="text-xs text-mafia mb-2 font-bold">
-              🔴 أعضاء فريقك
+            <div className="text-xs mb-2 font-bold" style={{ color: "#FFFFFF" }}>
+              أعضاء فريقك
             </div>
             {teamLoading ? (
               <p className="text-xs text-muted">جارٍ التحميل...</p>
@@ -302,8 +298,8 @@ export default function RoleRevealPage() {
                     key={m.player_id}
                     className="flex items-center justify-between text-sm"
                   >
-                    <span className="text-cream">{m.name}</span>
-                    <span className="text-[11px] text-muted">
+                    <span style={{ color: "#FFFFFF" }}>{m.name}</span>
+                    <span className="text-[11px]" style={{ color: "#888888" }}>
                       {ROLES[m.role].nameAr}
                     </span>
                   </div>
