@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ensureAnonymousSession, getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { ROLES, CONFIGURABLE_ROLES, validateRoleCounts, calcCivilianCount, RoleCounts, RoleKey } from "@/lib/roles";
 
 interface OpenRoom {
   code: string;
@@ -11,11 +12,21 @@ interface OpenRoom {
   target_count: number;
 }
 
+const DEFAULT_COUNTS: RoleCounts = {
+  mafia: 1,
+  informer: 0,
+  mafia_cop: 0,
+  detective: 1,
+  doctor: 0,
+  sniper: 0,
+};
+
 export default function HomePage() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [mode, setMode] = useState<"idle" | "create" | "join">("idle");
   const [playerCount, setPlayerCount] = useState(10);
+  const [roleCounts, setRoleCounts] = useState<RoleCounts>(DEFAULT_COUNTS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [openRooms, setOpenRooms] = useState<OpenRoom[]>([]);
@@ -60,13 +71,26 @@ export default function HomePage() {
     return json;
   }
 
+  const civilianCount = calcCivilianCount(playerCount, roleCounts);
+  const validation = validateRoleCounts(playerCount, roleCounts);
+
+  function updateRoleCount(role: RoleKey, delta: number) {
+    setRoleCounts((prev) => {
+      const key = role as keyof RoleCounts;
+      const next = Math.max(0, (prev[key] || 0) + delta);
+      return { ...prev, [key]: next };
+    });
+  }
+
   async function handleCreate() {
+    if (!validation.valid) return;
     setError("");
     setLoading(true);
     try {
       const { room } = await callApi("/api/rooms/create", {
         hostName: name,
         targetPlayerCount: playerCount,
+        roleCounts,
       });
       router.push(`/room/${room.code}`);
     } catch (e: any) {
@@ -114,7 +138,7 @@ export default function HomePage() {
       )}
 
       {mode !== "idle" && (
-        <div className="w-full max-w-xs flex flex-col gap-4">
+        <div className="w-full max-w-sm flex flex-col gap-4">
           <div>
             <label className="block text-xs text-muted mb-1">أدخل اسمك</label>
             <input
@@ -127,19 +151,87 @@ export default function HomePage() {
           </div>
 
           {mode === "create" && (
-            <div>
-              <label className="block text-xs text-muted mb-1">
-                عدد اللاعبين: {playerCount}
-              </label>
-              <input
-                type="range"
-                min={10}
-                max={30}
-                value={playerCount}
-                onChange={(e) => setPlayerCount(Number(e.target.value))}
-                className="w-full accent-gold"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-xs text-muted mb-1">
+                  عدد اللاعبين: {playerCount}
+                </label>
+                <input
+                  type="range"
+                  min={10}
+                  max={30}
+                  value={playerCount}
+                  onChange={(e) => setPlayerCount(Number(e.target.value))}
+                  className="w-full accent-gold"
+                />
+              </div>
+
+              <div className="rounded-xl p-3 bg-panel border border-border">
+                <div className="text-xs text-muted mb-3">توزيع الأدوار</div>
+                <div className="flex flex-col gap-2">
+                  {CONFIGURABLE_ROLES.map((roleKey) => {
+                    const def = ROLES[roleKey];
+                    const key = roleKey as keyof RoleCounts;
+                    return (
+                      <div
+                        key={roleKey}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="text-sm flex items-center gap-1.5">
+                          <span>{def.emoji}</span>
+                          <span style={{ color: "#EDEAE0" }}>{def.nameAr}</span>
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => updateRoleCount(roleKey, -1)}
+                            className="w-7 h-7 rounded-full text-sm"
+                            style={{ background: "#1A2230", color: "#8A93A6" }}
+                          >
+                            −
+                          </button>
+                          <span
+                            dir="ltr"
+                            className="w-4 text-center text-sm font-bold"
+                            style={{ color: "#C9A227" }}
+                          >
+                            {roleCounts[key]}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => updateRoleCount(roleKey, 1)}
+                            className="w-7 h-7 rounded-full text-sm"
+                            style={{ background: "#1A2230", color: "#8A93A6" }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-border">
+                    <span className="text-sm flex items-center gap-1.5">
+                      <span>👥</span>
+                      <span style={{ color: "#EDEAE0" }}>الشعب</span>
+                    </span>
+                    <span
+                      dir="ltr"
+                      className="text-sm font-bold"
+                      style={{ color: civilianCount < 0 ? "#8B2635" : "#3FA37A" }}
+                    >
+                      {civilianCount}
+                    </span>
+                  </div>
+                </div>
+
+                {!validation.valid && (
+                  <p className="text-mafia text-[11px] text-center mt-3">
+                    {validation.message}
+                  </p>
+                )}
+              </div>
+            </>
           )}
 
           {mode === "join" && (
@@ -183,9 +275,6 @@ export default function HomePage() {
                         <span className="font-bold text-cream">
                           غرفة {r.host_name}
                         </span>
-                        <span className="text-[11px] text-muted">
-                          {r.code}
-                        </span>
                       </span>
                       <span className="text-xs text-gold" dir="ltr">
                         {joiningCode === r.code
@@ -205,7 +294,7 @@ export default function HomePage() {
 
           {mode === "create" && (
             <button
-              disabled={loading || name.trim().length < 2}
+              disabled={loading || name.trim().length < 2 || !validation.valid}
               onClick={handleCreate}
               className="rounded-xl py-3 font-bold bg-gold text-ink disabled:opacity-50"
             >
