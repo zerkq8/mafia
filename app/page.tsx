@@ -35,7 +35,10 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (mode === "join") loadOpenRooms();
+    if (mode !== "join") return;
+    loadOpenRooms();
+    const interval = setInterval(loadOpenRooms, 4000);
+    return () => clearInterval(interval);
   }, [mode, loadOpenRooms]);
 
   async function callApi(path: string, payload: object) {
@@ -184,9 +187,9 @@ export default function HomePage() {
                           {r.code}
                         </span>
                       </span>
-                      <span className="text-xs text-gold">
+                      <span className="text-xs text-gold" dir="ltr">
                         {joiningCode === r.code
-                          ? "جارٍ الدخول..."
+                          ? "..."
                           : full
                           ? "مكتملة"
                           : `${r.current_count}/${r.target_count}`}
