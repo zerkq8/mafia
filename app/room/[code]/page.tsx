@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ensureAnonymousSession,
@@ -32,14 +32,20 @@ export default function LobbyPage() {
   const [room, setRoom] = useState<RoomRow | null>(null);
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [myAuthId, setMyAuthId] = useState<string | null>(null);
+  const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [closing, setClosing] = useState(false);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  const hostPlayer = players.find((p) => p.is_host) || null;
+  const regularPlayers = players.filter((p) => !p.is_host);
   const me = players.find((p) => p.auth_id === myAuthId) || null;
   const isHost = !!me?.is_host;
-  const allReady = players.length > 0 && players.every((p) => p.is_ready);
-  const isFull = room ? players.length >= room.target_player_count : false;
+
+  const allReady =
+    regularPlayers.length > 0 && regularPlayers.every((p) => p.is_ready);
+  const isFull = room ? regularPlayers.length >= room.target_player_count : false;
   const canStart = allReady && isFull;
 
   const load = useCallback(async () => {
@@ -75,6 +81,10 @@ export default function LobbyPage() {
       }
 
       setPlayers((playersData as PlayerRow[]) || []);
+      const mine = (playersData as PlayerRow[] | null)?.find(
+        (p) => p.auth_id === session?.user.id
+      );
+      if (mine) setMyPlayerId(mine.id);
     } catch (e: any) {
       setError(e.message || "حدث خطأ غير متوقع.");
     } finally {
@@ -85,6 +95,26 @@ export default function LobbyPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // نبضة حياة: تحدّث كل 20 ثانية طالما الصفحة مفتوحة — تُستخدم لتنظيف الغرف المهجورة
+  useEffect(() => {
+    if (!myPlayerId) return;
+    const supabase = getSupabaseBrowserClient();
+
+    const ping = () => {
+      supabase
+        .from("players")
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq("id", myPlayerId)
+        .then(() => {});
+    };
+
+    ping();
+    heartbeatRef.current = setInterval(ping, 20000);
+    return () => {
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    };
+  }, [myPlayerId]);
 
   // Realtime: لاعبين + حالة الغرفة (بما فيها الحذف)
   useEffect(() => {
@@ -112,7 +142,7 @@ export default function LobbyPage() {
           filter: `id=eq.${room.id}`,
         },
         () => {
-          setError("تم إغلاق هذه الغرفة من قبل الحكم.");
+          setError("تم إغلاق هذه الغرفة.");
           setRoom(null);
         }
       )
@@ -178,10 +208,28 @@ export default function LobbyPage() {
   }
 
   const total = room.target_player_count;
-  const slots = Array.from({ length: total }, (_, i) => players[i] || null);
+  const slots = Array.from({ length: total }, (_, i) => regularPlayers[i] || null);
 
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
+      {/* صندوق الحكم — منفصل تمامًا عن عدّاد اللاعبين */}
+      {hostPlayer && (
+        <div className="flex justify-center mb-5">
+          <div
+            className="flex items-center gap-2 rounded-full px-5 py-2"
+            style={{ background: "#1E1508", border: "1px solid #C9A227" }}
+          >
+            <span className="text-base">👑</span>
+            <span className="text-sm font-bold" style={{ color: "#C9A227" }}>
+              الحكم
+            </span>
+            <span className="text-sm" style={{ color: "#EDEAE0" }}>
+              {hostPlayer.name}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* العدّاد بالنص فوق — dir=ltr لتفادي مشكلة انعكاس الأرقام بالـ RTL */}
       <div className="text-center mb-6">
         <div className="text-[10px] tracking-[0.3em] text-muted mb-1">
@@ -191,16 +239,13 @@ export default function LobbyPage() {
           dir="ltr"
           className="font-display text-4xl text-gold inline-block"
         >
-          {players.length}
+          {regularPlayers.length}
           <span className="text-muted text-2xl mx-1">/</span>
           {total}
         </div>
-        {isHost && (
-          <div className="text-[11px] text-gold mt-1">👑 أنت الحكم</div>
-        )}
       </div>
 
-      {/* شبكة المربعات */}
+      {/* شبكة المربعات — لاعبين فقط، بدون الحكم */}
       <div className="grid grid-cols-4 gap-2 mb-8">
         {slots.map((p, i) => {
           const filled = !!p;
@@ -227,7 +272,7 @@ export default function LobbyPage() {
                   <span
                     className="w-1.5 h-1.5 rounded-full"
                     style={{
-                      background: p!.is_ready ? "#3FA37A" : "#8A93A6",
+                      background: p!.is_ready ? "#3FA37A" : "#C0392B",
                     }}
                   />
                 </div>
@@ -263,7 +308,7 @@ export default function LobbyPage() {
             style={{ background: "#8B2635", color: "#EDEAE0" }}
           >
             {!isFull
-              ? `بانتظار اكتمال اللاعبين (${players.length}/${total})`
+              ? `بانتظار اكتمال اللاعبين (${regularPlayers.length}/${total})`
               : !allReady
               ? "بانتظار استعداد الجميع"
               : "بدء اللعبة"}
