@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
-import QRCode from "qrcode";
+import { useParams, useRouter } from "next/navigation";
 import {
   ensureAnonymousSession,
   getSupabaseBrowserClient,
@@ -27,15 +26,15 @@ interface PlayerRow {
 
 export default function LobbyPage() {
   const params = useParams();
+  const router = useRouter();
   const code = String(params.code || "").toUpperCase();
 
   const [room, setRoom] = useState<RoomRow | null>(null);
   const [players, setPlayers] = useState<PlayerRow[]>([]);
   const [myAuthId, setMyAuthId] = useState<string | null>(null);
-  const [qrDataUrl, setQrDataUrl] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [closing, setClosing] = useState(false);
 
   const me = players.find((p) => p.auth_id === myAuthId) || null;
   const isHost = !!me?.is_host;
@@ -57,7 +56,7 @@ export default function LobbyPage() {
         .maybeSingle();
 
       if (roomError || !roomData) {
-        setError("لم يتم العثور على الغرفة.");
+        setError("لم يتم العثور على الغرفة. ربما تم إغلاقها.");
         setLoading(false);
         return;
       }
@@ -70,13 +69,6 @@ export default function LobbyPage() {
         .order("created_at", { ascending: true });
 
       setPlayers((playersData as PlayerRow[]) || []);
-
-      const url = `${window.location.origin}/room/${code}`;
-      const qr = await QRCode.toDataURL(url, {
-        margin: 1,
-        color: { dark: "#0B0E14", light: "#EDEAE0" },
-      });
-      setQrDataUrl(qr);
     } catch (e: any) {
       setError(e.message || "حدث خطأ غير متوقع.");
     } finally {
@@ -88,7 +80,7 @@ export default function LobbyPage() {
     load();
   }, [load]);
 
-  // Realtime subscription على جدول اللاعبين لهذه الغرفة
+  // Realtime: لاعبين + حالة الغرفة (بما فيها الحذف)
   useEffect(() => {
     if (!room) return;
     const supabase = getSupabaseBrowserClient();
@@ -103,20 +95,19 @@ export default function LobbyPage() {
           table: "players",
           filter: `room_id=eq.${room.id}`,
         },
-        () => {
-          load();
-        }
+        () => load()
       )
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "DELETE",
           schema: "public",
           table: "rooms",
           filter: `id=eq.${room.id}`,
         },
         () => {
-          load();
+          setError("تم إغلاق هذه الغرفة من قبل الحكم.");
+          setRoom(null);
         }
       )
       .subscribe();
@@ -136,10 +127,26 @@ export default function LobbyPage() {
       .eq("id", me.id);
   }
 
-  function copyCode() {
-    navigator.clipboard.writeText(code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+  async function closeRoom() {
+    if (!room || !isHost) return;
+    const ok = window.confirm(
+      "هل أنت متأكد من إغلاق الغرفة؟ سيتم حذف كل بيانات هذه الجولة نهائيًا لجميع اللاعبين."
+    );
+    if (!ok) return;
+
+    setClosing(true);
+    const supabase = getSupabaseBrowserClient();
+    const { error: delError } = await supabase
+      .from("rooms")
+      .delete()
+      .eq("id", room.id);
+
+    if (delError) {
+      setError("تعذّر إغلاق الغرفة: " + delError.message);
+      setClosing(false);
+      return;
+    }
+    router.push("/");
   }
 
   if (loading) {
@@ -150,78 +157,83 @@ export default function LobbyPage() {
     );
   }
 
-  if (error) {
+  if (error || !room) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-6">
+      <main className="min-h-screen flex flex-col items-center justify-center px-6 gap-4">
         <p className="text-mafia text-sm text-center">{error}</p>
+        <button
+          onClick={() => router.push("/")}
+          className="text-xs text-gold border border-gold rounded-full px-4 py-2"
+        >
+          رجوع للرئيسية
+        </button>
       </main>
     );
   }
 
+  const total = room.target_player_count;
+  const slots = Array.from({ length: total }, (_, i) => players[i] || null);
+
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
+      {/* العدّاد بالنص فوق — dir=ltr لتفادي مشكلة انعكاس الأرقام بالـ RTL */}
       <div className="text-center mb-6">
         <div className="text-[10px] tracking-[0.3em] text-muted mb-1">
-          رمز الغرفة
+          عدد اللاعبين
         </div>
-        <div className="flex items-center justify-center gap-2">
-          <span className="font-display text-3xl text-gold tracking-widest">
-            {code}
-          </span>
-          <button
-            onClick={copyCode}
-            className="text-xs text-muted border border-border rounded-full px-3 py-1"
-          >
-            {copied ? "تم النسخ ✓" : "نسخ"}
-          </button>
+        <div
+          dir="ltr"
+          className="font-display text-4xl text-gold inline-block"
+        >
+          {players.length}
+          <span className="text-muted text-2xl mx-1">/</span>
+          {total}
         </div>
-      </div>
-
-      {qrDataUrl && (
-        <div className="flex justify-center mb-6">
-          <img
-            src={qrDataUrl}
-            alt="QR"
-            className="w-32 h-32 rounded-lg border border-border"
-          />
-        </div>
-      )}
-
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs text-muted">
-          {players.length} / {room?.target_player_count} لاعبًا
-        </span>
         {isHost && (
-          <span className="text-xs text-gold">👑 أنت الحكم</span>
+          <div className="text-[11px] text-gold mt-1">👑 أنت الحكم</div>
         )}
       </div>
 
-      <div className="flex-1 flex flex-col gap-2 mb-6">
-        {players.map((p) => (
-          <div
-            key={p.id}
-            className="flex items-center justify-between rounded-lg px-4 py-3 bg-panel border border-border"
-          >
-            <span className="text-sm flex items-center gap-2">
-              {p.name}
-              {p.is_host && <span className="text-[10px] text-gold">👑</span>}
-              {p.auth_id === myAuthId && (
-                <span className="text-[10px] text-muted">(أنت)</span>
-              )}
-            </span>
-            <span
-              className="text-xs flex items-center gap-1"
-              style={{ color: p.is_ready ? "#3FA37A" : "#8A93A6" }}
+      {/* شبكة المربعات */}
+      <div className="grid grid-cols-4 gap-2 mb-8">
+        {slots.map((p, i) => {
+          const filled = !!p;
+          const isMe = p?.auth_id === myAuthId;
+          return (
+            <div
+              key={i}
+              className="aspect-square rounded-lg flex items-center justify-center text-center px-1"
+              style={{
+                background: filled ? "#141B26" : "transparent",
+                border: `1px solid ${
+                  isMe ? "#C9A227" : filled ? "#2A3342" : "#1A2230"
+                }`,
+              }}
             >
-              <span
-                className="w-2 h-2 rounded-full inline-block"
-                style={{ background: p.is_ready ? "#3FA37A" : "#8A93A6" }}
-              />
-              {p.is_ready ? "مستعد" : "غير مستعد"}
-            </span>
-          </div>
-        ))}
+              {filled ? (
+                <div className="flex flex-col items-center gap-1">
+                  <span
+                    className="text-[10px] leading-tight break-all"
+                    style={{ color: isMe ? "#C9A227" : "#EDEAE0" }}
+                  >
+                    {p!.name}
+                  </span>
+                  <span
+                    className="w-1.5 h-1.5 rounded-full"
+                    style={{
+                      background: p!.is_ready ? "#3FA37A" : "#8A93A6",
+                    }}
+                  />
+                </div>
+              ) : (
+                <span className="text-border text-lg">·</span>
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      <div className="flex-1" />
 
       {!isHost && me && (
         <button
@@ -238,17 +250,32 @@ export default function LobbyPage() {
       )}
 
       {isHost && (
-        <button
-          disabled={!canStart}
-          className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-40"
-          style={{ background: "#8B2635", color: "#EDEAE0" }}
-        >
-          {!isFull
-            ? `بانتظار اكتمال اللاعبين (${players.length}/${room?.target_player_count})`
-            : !allReady
-            ? "بانتظار استعداد الجميع"
-            : "بدء اللعبة"}
-        </button>
+        <>
+          <button
+            disabled={!canStart}
+            className="w-full rounded-xl py-3 text-sm font-bold mb-3 disabled:opacity-40"
+            style={{ background: "#8B2635", color: "#EDEAE0" }}
+          >
+            {!isFull
+              ? `بانتظار اكتمال اللاعبين (${players.length}/${total})`
+              : !allReady
+              ? "بانتظار استعداد الجميع"
+              : "بدء اللعبة"}
+          </button>
+
+          <button
+            onClick={closeRoom}
+            disabled={closing}
+            className="w-full rounded-xl py-3 text-xs font-bold disabled:opacity-40"
+            style={{
+              background: "transparent",
+              border: "1px solid #8B2635",
+              color: "#8B2635",
+            }}
+          >
+            {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}
+          </button>
+        </>
       )}
     </main>
   );
