@@ -35,6 +35,7 @@ export default function LobbyPage() {
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [closing, setClosing] = useState(false);
   const [starting, setStarting] = useState(false);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -194,7 +195,7 @@ export default function LobbyPage() {
       .eq("id", room.id);
 
     if (delError) {
-      setError("تعذّر إغلاق الغرفة: " + delError.message);
+      setActionError("تعذّر إغلاق الغرفة: " + delError.message);
       setClosing(false);
       return;
     }
@@ -204,7 +205,7 @@ export default function LobbyPage() {
   async function startGame() {
     if (!room || !canStart) return;
     setStarting(true);
-    setError("");
+    setActionError("");
     try {
       const supabase = getSupabaseBrowserClient();
       const { data: sessionData } = await supabase.auth.getSession();
@@ -222,7 +223,7 @@ export default function LobbyPage() {
       if (!res.ok) throw new Error(json.error || "تعذّر بدء اللعبة.");
       router.push(`/room/${code}/gm`);
     } catch (e: any) {
-      setError(e.message);
+      setActionError(e.message);
       setStarting(false);
     }
   }
@@ -237,7 +238,7 @@ export default function LobbyPage() {
       .delete()
       .eq("id", player.id);
     if (kickError) {
-      setError("تعذّر طرد اللاعب: " + kickError.message);
+      setActionError("تعذّر طرد اللاعب: " + kickError.message);
     }
   }
 
@@ -251,7 +252,7 @@ export default function LobbyPage() {
       .delete()
       .eq("id", me.id);
     if (leaveError) {
-      setError("تعذّر الخروج: " + leaveError.message);
+      setActionError("تعذّر الخروج: " + leaveError.message);
       return;
     }
     router.push("/");
@@ -284,6 +285,9 @@ export default function LobbyPage() {
 
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
+      {actionError && (
+        <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
+      )}
       {/* صندوق الحكم — منفصل تمامًا عن عدّاد اللاعبين */}
       {hostPlayer && (
         <div className="flex justify-center mb-5">
