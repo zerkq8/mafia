@@ -127,80 +127,113 @@ export default function TvDisplayPage() {
   return (
     <main
       dir="rtl"
-      className="min-h-screen flex flex-col items-center justify-center px-10"
+      className="min-h-screen flex flex-col items-center px-6 py-8"
       style={{
-        background: "#05070A",
+        background: "radial-gradient(ellipse at top, #0F141C 0%, #05070A 60%)",
         fontFamily: "'Tajawal', sans-serif",
       }}
     >
-      {!started && (
-        <div className="text-center">
-          <div className="text-5xl mb-4" style={{ color: "#8A93A6" }}>
-            🎴
-          </div>
-          <div className="text-3xl" style={{ color: "#8A93A6" }}>
-            بانتظار بدء النقاش من الحكم
-          </div>
-        </div>
-      )}
+      {/* شعار علوي ثابت — يعطي طابع احترافي بغض النظر عن حالة الشاشة */}
+      <div className="flex items-center gap-2 mb-8">
+        <span
+          className="text-lg tracking-[0.2em]"
+          style={{ fontFamily: "'Rakkas', serif", color: "#C9A227" }}
+        >
+          مافيا الكويت
+        </span>
+        <span
+          className="w-1.5 h-1.5 rounded-full animate-pulse"
+          style={{ background: "#3FA37A" }}
+        />
+      </div>
 
-      {finished && (
-        <div className="text-center">
-          <div className="text-6xl mb-4">✅</div>
-          <div className="text-4xl" style={{ color: "#EDEAE0" }}>
-            انتهى دور الجميع بالكلام
-          </div>
-        </div>
-      )}
-
-      {started && !finished && (
-        <div className="flex flex-col items-center gap-8 w-full max-w-3xl">
-          <div
-            className="text-2xl tracking-[0.4em]"
-            style={{ color: isAccusedTurn ? "#C0392B" : "#8A93A6" }}
-          >
-            {isAccusedTurn ? "المتهم يتكلم" : "دور الكلام"}
-          </div>
-
-          <div
-            className="text-8xl font-extrabold text-center"
-            style={{ color: "#EDEAE0", fontFamily: "'Rakkas', serif" }}
-          >
-            {playerName(currentId)}
-          </div>
-
-          <div
-            className="text-9xl font-extrabold tabular-nums"
-            dir="ltr"
-            style={{
-              color: remaining <= 10 ? "#C0392B" : "#C9A227",
-              transition: "color 0.3s",
-            }}
-          >
-            {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
-          </div>
-
-          <div
-            className="w-full h-3 rounded-full overflow-hidden"
-            style={{ background: "#141B26" }}
-          >
-            <div
-              className="h-full rounded-full"
-              style={{
-                width: `${pct * 100}%`,
-                background: remaining <= 10 ? "#C0392B" : "#C9A227",
-                transition: "width 0.25s linear, background 0.3s",
-              }}
-            />
-          </div>
-
-          {nextId && (
-            <div className="text-lg" style={{ color: "#8A93A6" }}>
-              التالي: <span style={{ color: "#EDEAE0" }}>{playerName(nextId)}</span>
+      <div className="flex-1 flex flex-col items-center justify-center w-full">
+        {!started && (
+          <div className="text-center">
+            <div className="text-5xl mb-5 opacity-70">🎴</div>
+            <div className="text-xl sm:text-2xl" style={{ color: "#8A93A6" }}>
+              بانتظار بدء النقاش من الحكم
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+
+        {finished && (
+          <div className="text-center">
+            <div className="text-6xl mb-5">✅</div>
+            <div className="text-2xl sm:text-3xl" style={{ color: "#EDEAE0" }}>
+              انتهى دور الجميع بالكلام
+            </div>
+          </div>
+        )}
+
+        {started && !finished && (
+          <div className="flex flex-col items-center gap-6 w-full max-w-md">
+            <div
+              className="flex items-center gap-2 px-4 py-1.5 rounded-full text-sm tracking-[0.25em]"
+              style={{
+                background: isAccusedTurn ? "#8B263522" : "#14212099",
+                border: `1px solid ${isAccusedTurn ? "#8B263566" : "#2A3342"}`,
+                color: isAccusedTurn ? "#E05A4A" : "#8A93A6",
+              }}
+            >
+              {isAccusedTurn ? "🔴 المتهم يتكلم" : "دور الكلام"}
+            </div>
+
+            <div
+              className="text-5xl sm:text-6xl font-extrabold text-center leading-tight"
+              style={{ color: "#EDEAE0", fontFamily: "'Rakkas', serif" }}
+            >
+              {playerName(currentId)}
+            </div>
+
+            <div
+              className="text-7xl sm:text-8xl font-extrabold tabular-nums"
+              dir="ltr"
+              style={{
+                color: remaining <= 10 ? "#E05A4A" : "#C9A227",
+                transition: "color 0.3s",
+              }}
+            >
+              {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
+            </div>
+
+            <div
+              className="w-full h-2.5 rounded-full overflow-hidden"
+              style={{ background: "#141B26" }}
+            >
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${pct * 100}%`,
+                  background: remaining <= 10 ? "#E05A4A" : "#C9A227",
+                  transition: "width 0.25s linear, background 0.3s",
+                }}
+              />
+            </div>
+
+            <div
+              className="text-xs tracking-[0.15em]"
+              style={{ color: "#5A6270" }}
+            >
+              الدور {room.speaking_index + 1} من {room.speaking_order.length}
+            </div>
+
+            {nextId && (
+              <div
+                className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full"
+                style={{ background: "#0F141C", border: "1px solid #1E2733" }}
+              >
+                <span className="text-xs" style={{ color: "#5A6270" }}>
+                  التالي
+                </span>
+                <span className="text-base font-bold" style={{ color: "#EDEAE0" }}>
+                  {playerName(nextId)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </main>
   );
 }
