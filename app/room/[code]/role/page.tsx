@@ -20,6 +20,7 @@ export default function RoleRevealPage() {
   const code = String(params.code || "").toUpperCase();
 
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const [role, setRole] = useState<RoleKey | null>(null);
   const [team, setTeam] = useState<TeamKey | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,6 +57,15 @@ export default function RoleRevealPage() {
           return;
         }
         setRoomId(room.id);
+
+        const { data: sessionData } = await supabase.auth.getSession();
+        const { data: myPlayerRow } = await supabase
+          .from("players")
+          .select("id")
+          .eq("room_id", room.id)
+          .eq("auth_id", sessionData.session?.user.id)
+          .maybeSingle();
+        if (myPlayerRow) setMyPlayerId(myPlayerRow.id);
 
         const { data, error: rpcError } = await supabase.rpc("get_my_role", {
           p_room_id: room.id,
@@ -101,6 +111,22 @@ export default function RoleRevealPage() {
       document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
+  // نبضة حياة
+  useEffect(() => {
+    if (!myPlayerId) return;
+    const supabase = getSupabaseBrowserClient();
+    const ping = () => {
+      supabase
+        .from("players")
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq("id", myPlayerId)
+        .then(() => {});
+    };
+    ping();
+    const interval = setInterval(ping, 20000);
+    return () => clearInterval(interval);
+  }, [myPlayerId]);
+
   const onGripDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     dragging.current = true;
     const clientX = "clientX" in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
@@ -112,10 +138,7 @@ export default function RoleRevealPage() {
     if (!dragging.current || !cardRef.current) return;
     const clientX = "clientX" in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
     const width = cardRef.current.offsetWidth || 1;
-    // السحب لليسار أو لليمين كلاهما يفتح الستارة أكثر
-    const delta = (startX.current - clientX) / width;
-    const next = Math.min(1, Math.max(0, startCurtain.current + Math.abs(delta) * (delta === 0 ? 0 : 1)));
-    // نسمح بالسحب لأي اتجاه: نستخدم القيمة المطلقة للفارق
+    // السحب لليسار أو لليمين كلاهما يفتح الستارة أكثر — نستخدم القيمة المطلقة للفارق
     const raw = startCurtain.current + Math.abs(startX.current - clientX) / width;
     setCurtain(Math.min(1, Math.max(0, raw)));
   }, []);
