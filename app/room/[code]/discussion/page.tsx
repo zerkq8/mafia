@@ -251,52 +251,45 @@ export default function DiscussionPage() {
         <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
       )}
 
-      <div className="text-xs text-muted mb-2">
-        قائمة اللاعبين (اضغط على اسم ليتكلم آخرًا / متهم)
-      </div>
-      <div className="flex flex-wrap gap-1.5 mb-6">
-        {nameList.map((p) => {
-          const isAccused = room.accused_player_id === p.id;
-          const idx = room.speaking_order.indexOf(p.id);
-          const hasSpoken =
-            idx > -1 && idx <= room.speaking_index && room.speaking_turn_started_at !== null;
-          return (
-            <button
-              key={p.id}
-              onClick={() => markAccused(p.id)}
-              className="text-sm px-4 py-2 rounded-full"
-              style={{
-                background: isAccused ? "#8B263533" : "#141B26",
-                color: isAccused ? "#C0392B" : hasSpoken ? "#4A5264" : "#EDEAE0",
-                border: `1px solid ${isAccused ? "#8B263566" : "#2A3342"}`,
-              }}
-            >
-              {p.name}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="flex-1" />
-
-      <div className="text-center mb-4">
-        {!started && <p className="text-sm text-muted">لم يبدأ النقاش بعد</p>}
+      {/* بطاقة الحالة الحالية — أهم معلومة، فوق وواضحة */}
+      <div
+        className="rounded-2xl p-6 mb-5 text-center"
+        style={{ background: "#141B26", border: "1px solid #2A3342" }}
+      >
+        {!started && (
+          <p className="text-sm py-4" style={{ color: "#8A93A6" }}>
+            لم يبدأ النقاش بعد
+          </p>
+        )}
         {started && !finished && (
           <>
-            <p className="text-xs text-muted mb-1">المتكلم الحالي</p>
-            <p className="text-2xl font-bold text-cream">{playerName(currentId)}</p>
-            <p dir="ltr" className="text-4xl font-display text-gold mt-2">
+            <p className="text-[10px] tracking-[0.2em] mb-2" style={{ color: "#8A93A6" }}>
+              المتكلم الحالي
+            </p>
+            <p className="text-2xl font-bold mb-3" style={{ color: "#EDEAE0" }}>
+              {playerName(currentId)}
+            </p>
+            <p
+              dir="ltr"
+              className="text-5xl font-display mb-2"
+              style={{ color: remaining <= 10 ? "#E05A4A" : "#C9A227" }}
+            >
               {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
             </p>
-            <p className="text-xs text-muted mt-1">
-              الدور {room.speaking_index + 1} / {room.speaking_order.length}
+            <p className="text-[11px]" style={{ color: "#5A6270" }}>
+              الدور {room.speaking_index + 1} من {room.speaking_order.length}
             </p>
           </>
         )}
-        {finished && <p className="text-sm text-muted">انتهى دور الجميع بالكلام</p>}
+        {finished && (
+          <p className="text-sm py-4" style={{ color: "#8A93A6" }}>
+            ✅ انتهى دور الجميع بالكلام
+          </p>
+        )}
       </div>
 
-      <div className="flex items-center justify-center gap-3 mb-4">
+      {/* أزرار التحكم */}
+      <div className="flex items-center justify-center gap-3 mb-3">
         <button
           onClick={() => extendTime(30)}
           disabled={!started || finished}
@@ -322,14 +315,47 @@ export default function DiscussionPage() {
 
       <button
         onClick={() => window.open(`/room/${code}/tv`, "_blank", "noopener")}
-        className="w-full text-sm text-center text-gold mb-3"
+        className="w-full text-sm text-center py-2 mb-6"
+        style={{ color: "#C9A227" }}
       >
         📺 فتح شاشة العرض للتلفزيون
       </button>
 
+      {/* قائمة الأسماء لتحديد المتهم */}
+      <div className="rounded-2xl p-4 mb-6" style={{ background: "#0F141C", border: "1px solid #1E2733" }}>
+        <div className="text-xs mb-3" style={{ color: "#8A93A6" }}>
+          قائمة اللاعبين — اضغط على اسم ليتكلم آخرًا (متهم)
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {nameList.map((p) => {
+            const isAccused = room.accused_player_id === p.id;
+            const idx = room.speaking_order.indexOf(p.id);
+            const hasSpoken =
+              idx > -1 && idx <= room.speaking_index && room.speaking_turn_started_at !== null;
+            return (
+              <button
+                key={p.id}
+                onClick={() => markAccused(p.id)}
+                className="text-sm px-4 py-2 rounded-full"
+                style={{
+                  background: isAccused ? "#8B263533" : "#141B26",
+                  color: isAccused ? "#E05A4A" : hasSpoken ? "#4A5264" : "#EDEAE0",
+                  border: `1px solid ${isAccused ? "#8B263566" : "#2A3342"}`,
+                }}
+              >
+                {p.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex-1" />
+
       <button
         onClick={() => router.push(`/room/${code}/gm`)}
-        className="w-full text-xs text-center text-muted"
+        className="w-full text-xs text-center py-2"
+        style={{ color: "#8A93A6" }}
       >
         رجوع للوحة الحكم
       </button>
