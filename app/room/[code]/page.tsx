@@ -36,6 +36,8 @@ export default function LobbyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [kicked, setKicked] = useState(false);
+  const wasPlayerRef = useRef(false);
   const [closing, setClosing] = useState(false);
   const [starting, setStarting] = useState(false);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -70,6 +72,15 @@ export default function LobbyPage() {
       }
       setRoom(roomData as RoomRow);
 
+      // إعادة الاتصال: لو اللعبة بدأت فعليًا وسوّينا Refresh لصفحة اللوبي القديمة،
+      // ودّي كل واحد لمكانه الصحيح فورًا بدل ما يعلق بشاشة انتظار قديمة
+      if (roomData.status !== "lobby") {
+        const amHost = roomData.host_auth_id === session?.user.id;
+        router.replace(`/room/${code}/${amHost ? "gm" : "role"}`);
+        setLoading(false);
+        return;
+      }
+
       const { data: playersData, error: playersError } = await supabase
         .from("players")
         .select("id, name, is_host, is_ready, is_alive, auth_id")
@@ -82,11 +93,18 @@ export default function LobbyPage() {
         return;
       }
 
-      setPlayers((playersData as PlayerRow[]) || []);
-      const mine = (playersData as PlayerRow[] | null)?.find(
-        (p) => p.auth_id === session?.user.id
-      );
-      if (mine) setMyPlayerId(mine.id);
+      const freshPlayers = (playersData as PlayerRow[]) || [];
+      setPlayers(freshPlayers);
+      const mine = freshPlayers.find((p) => p.auth_id === session?.user.id);
+
+      // لو كنا لاعبًا مسجّلًا قبل وصرنا مو موجودين بالقائمة الحين = تم طردنا
+      if (!mine && wasPlayerRef.current) {
+        setKicked(true);
+      }
+      if (mine) {
+        setMyPlayerId(mine.id);
+        wasPlayerRef.current = true;
+      }
     } catch (e: any) {
       setError(e.message || "حدث خطأ غير متوقع.");
     } finally {
@@ -262,6 +280,22 @@ export default function LobbyPage() {
     return (
       <main className="min-h-screen flex items-center justify-center text-muted text-sm">
         جارٍ التحميل...
+      </main>
+    );
+  }
+
+  if (kicked) {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center px-6 gap-4">
+        <p className="text-mafia text-sm text-center">
+          تم إخراجك من هذه الغرفة من قبل الحكم.
+        </p>
+        <button
+          onClick={() => router.push("/")}
+          className="text-xs text-gold border border-gold rounded-full px-4 py-2"
+        >
+          رجوع للرئيسية
+        </button>
       </main>
     );
   }
