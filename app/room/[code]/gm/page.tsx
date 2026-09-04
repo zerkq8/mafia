@@ -14,11 +14,6 @@ interface RoomRow {
   status: string;
   round_number: number;
   host_auth_id: string;
-  speaking_order: string[];
-  speaking_index: number;
-  speaking_turn_started_at: string | null;
-  speaking_duration_seconds: number;
-  accused_player_id: string | null;
 }
 
 interface PlayerWithRole {
@@ -43,13 +38,6 @@ export default function GmDashboardPage() {
   const [actionError, setActionError] = useState("");
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [showNamesPanel, setShowNamesPanel] = useState(false);
-  const [tick, setTick] = useState(0);
-
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 1000);
-    return () => clearInterval(t);
-  }, []);
 
   const load = useCallback(async () => {
     try {
@@ -58,9 +46,7 @@ export default function GmDashboardPage() {
 
       const { data: roomData, error: roomError } = await supabase
         .from("rooms")
-        .select(
-          "id, code, status, round_number, host_auth_id, speaking_order, speaking_index, speaking_turn_started_at, speaking_duration_seconds, accused_player_id"
-        )
+        .select("id, code, status, round_number, host_auth_id")
         .eq("code", code)
         .maybeSingle();
 
@@ -154,11 +140,6 @@ export default function GmDashboardPage() {
         { event: "*", schema: "public", table: "players", filter: `room_id=eq.${room.id}` },
         () => load()
       )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${room.id}` },
-        () => load()
-      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -195,95 +176,6 @@ export default function GmDashboardPage() {
       payload: { player_id: player.id, player_name: player.name },
       gm_only: true,
     });
-  }
-
-  function shuffleIds(ids: string[]) {
-    const arr = [...ids];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }
-
-  async function startDiscussion() {
-    if (!room) return;
-    const eligible = players
-      .filter(
-        (p) =>
-          p.is_alive && p.role !== "detective" && p.role !== "mafia_cop"
-      )
-      .map((p) => p.id);
-
-    if (eligible.length === 0) {
-      setActionError("لا يوجد لاعبون مؤهلون لبدء النقاش.");
-      return;
-    }
-
-    const order = shuffleIds(eligible);
-    const supabase = getSupabaseBrowserClient();
-    const { error: updateError } = await supabase
-      .from("rooms")
-      .update({
-        speaking_order: order,
-        speaking_index: 0,
-        speaking_turn_started_at: new Date().toISOString(),
-        accused_player_id: null,
-      })
-      .eq("id", room.id);
-    if (updateError) setActionError("تعذّر بدء النقاش: " + updateError.message);
-    else setActionError("");
-  }
-
-  async function nextSpeaker() {
-    if (!room) return;
-    const supabase = getSupabaseBrowserClient();
-    const nextIndex = room.speaking_index + 1;
-    await supabase
-      .from("rooms")
-      .update({
-        speaking_index: nextIndex,
-        speaking_turn_started_at:
-          nextIndex < room.speaking_order.length
-            ? new Date().toISOString()
-            : null,
-      })
-      .eq("id", room.id);
-  }
-
-  async function extendTime(deltaSeconds: number) {
-    if (!room) return;
-    const supabase = getSupabaseBrowserClient();
-    await supabase
-      .from("rooms")
-      .update({
-        speaking_duration_seconds: Math.max(
-          10,
-          room.speaking_duration_seconds + deltaSeconds
-        ),
-      })
-      .eq("id", room.id);
-  }
-
-  async function markAccused(playerId: string) {
-    if (!room) return;
-    const order = [...(room.speaking_order || [])];
-    const idx = order.indexOf(playerId);
-    // ينتقل لآخر الدور فقط لو لسا ما تكلم (يظل بمكانه لو تكلم أو يتكلم الحين)
-    if (idx > -1 && idx > room.speaking_index) {
-      order.splice(idx, 1);
-      order.push(playerId);
-    }
-    const supabase = getSupabaseBrowserClient();
-    await supabase
-      .from("rooms")
-      .update({ speaking_order: order, accused_player_id: playerId })
-      .eq("id", room.id);
-  }
-
-  function playerName(id: string | null) {
-    if (!id) return "";
-    return players.find((p) => p.id === id)?.name || "";
   }
 
   if (loading) {
@@ -328,124 +220,13 @@ export default function GmDashboardPage() {
         <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
       )}
 
-      {/* 🎙️ إدارة النقاش — دور الكلام + عدّاد لعرضه على شاشة التلفزيون */}
-      <div
-        className="rounded-xl p-4 mb-6"
-        style={{ background: "#141B26", border: "1px solid #2A3342" }}
+      <button
+        onClick={() => router.push(`/room/${code}/discussion`)}
+        className="w-full rounded-xl py-3 text-sm font-bold mb-6"
+        style={{ background: "#141B26", border: "1px solid #C9A227", color: "#C9A227" }}
       >
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-bold text-gold">🎙️ إدارة النقاش</span>
-          <button
-            onClick={() => setShowNamesPanel((v) => !v)}
-            className="text-[11px] text-muted border border-border rounded-full px-3 py-1"
-          >
-            {showNamesPanel ? "إخفاء الأسماء" : "قائمة اللاعبين"}
-          </button>
-        </div>
-
-        {showNamesPanel && (
-          <div className="flex flex-wrap gap-1.5 mb-3">
-            {players
-              .filter((p) => p.is_alive)
-              .map((p) => {
-                const isAccused = room.accused_player_id === p.id;
-                const idx = room.speaking_order.indexOf(p.id);
-                const hasSpoken =
-                  idx > -1 && idx <= room.speaking_index && room.speaking_turn_started_at !== null;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => markAccused(p.id)}
-                    className="text-[11px] px-3 py-1.5 rounded-full"
-                    style={{
-                      background: isAccused ? "#8B263533" : "#0B0E14",
-                      color: isAccused ? "#C0392B" : hasSpoken ? "#4A5264" : "#EDEAE0",
-                      border: `1px solid ${isAccused ? "#8B263566" : "#2A3342"}`,
-                    }}
-                    title="اضغط لجعله آخر واحد يتكلم (متهم)"
-                  >
-                    {p.name}
-                  </button>
-                );
-              })}
-          </div>
-        )}
-
-        {(() => {
-          const started = room.speaking_index >= 0 && room.speaking_order.length > 0;
-          const finished = started && room.speaking_index >= room.speaking_order.length;
-          const currentId =
-            started && !finished ? room.speaking_order[room.speaking_index] : null;
-          const elapsed = room.speaking_turn_started_at
-            ? (Date.now() - new Date(room.speaking_turn_started_at).getTime()) / 1000
-            : 0;
-          const remaining = Math.max(
-            0,
-            Math.ceil(room.speaking_duration_seconds - elapsed)
-          );
-
-          return (
-            <>
-              <div className="text-center mb-3">
-                {!started && (
-                  <p className="text-xs text-muted">لم يبدأ النقاش بعد</p>
-                )}
-                {started && !finished && (
-                  <>
-                    <p className="text-[10px] text-muted mb-1">المتكلم الحالي</p>
-                    <p className="text-lg font-bold text-cream">
-                      {playerName(currentId)}
-                    </p>
-                    <p dir="ltr" className="text-2xl font-display text-gold mt-1">
-                      {Math.floor(remaining / 60)}:
-                      {String(remaining % 60).padStart(2, "0")}
-                    </p>
-                    <p className="text-[10px] text-muted mt-1">
-                      الدور {room.speaking_index + 1} / {room.speaking_order.length}
-                    </p>
-                  </>
-                )}
-                {finished && (
-                  <p className="text-xs text-muted">انتهى دور الجميع بالكلام</p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <button
-                  onClick={() => extendTime(30)}
-                  disabled={!started || finished}
-                  className="text-[11px] px-3 py-2 rounded-full border border-border text-muted disabled:opacity-30"
-                >
-                  +30 ثانية
-                </button>
-                <button
-                  onClick={startDiscussion}
-                  className="text-sm font-bold px-6 py-2.5 rounded-full"
-                  style={{ background: "#C9A227", color: "#0B0E14" }}
-                >
-                  {started && !finished ? "إعادة البدء" : "ابدأ"}
-                </button>
-                <button
-                  onClick={nextSpeaker}
-                  disabled={!started || finished}
-                  className="text-[11px] px-3 py-2 rounded-full border border-border text-muted disabled:opacity-30"
-                >
-                  التالي
-                </button>
-              </div>
-
-              <button
-                onClick={() =>
-                  window.open(`/room/${code}/tv`, "_blank", "noopener")
-                }
-                className="w-full text-[11px] text-center text-gold mt-2"
-              >
-                📺 فتح شاشة العرض للتلفزيون
-              </button>
-            </>
-          );
-        })()}
-      </div>
+        🎙️ إدارة النقاش
+      </button>
 
       <div className="flex flex-col gap-1.5">
         {players.map((p) => {
