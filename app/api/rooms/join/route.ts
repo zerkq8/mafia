@@ -56,7 +56,8 @@ export async function POST(req: Request) {
     const { count } = await admin
       .from("players")
       .select("*", { count: "exact", head: true })
-      .eq("room_id", room.id);
+      .eq("room_id", room.id)
+      .eq("is_host", false);
 
     if ((count ?? 0) >= room.target_player_count) {
       return NextResponse.json({ error: "الغرفة مكتملة العدد." }, { status: 409 });
