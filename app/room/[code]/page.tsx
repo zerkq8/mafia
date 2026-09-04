@@ -227,6 +227,20 @@ export default function LobbyPage() {
     }
   }
 
+  async function kickPlayer(player: PlayerRow) {
+    if (!isHost) return;
+    const ok = window.confirm(`هل تريد طرد "${player.name}" من الغرفة؟`);
+    if (!ok) return;
+    const supabase = getSupabaseBrowserClient();
+    const { error: kickError } = await supabase
+      .from("players")
+      .delete()
+      .eq("id", player.id);
+    if (kickError) {
+      setError("تعذّر طرد اللاعب: " + kickError.message);
+    }
+  }
+
   async function leaveRoom() {
     if (!me || isHost) return;
     const ok = window.confirm("هل تريد الخروج من الغرفة؟");
@@ -301,6 +315,11 @@ export default function LobbyPage() {
           <span className="text-muted text-2xl mx-1">/</span>
           {total}
         </div>
+        {isHost && (
+          <p className="text-[10px] text-muted mt-2">
+            اضغط على أي لاعب لطرده من الغرفة
+          </p>
+        )}
       </div>
 
       {/* شبكة المربعات — لاعبين فقط، بدون الحكم */}
@@ -311,12 +330,16 @@ export default function LobbyPage() {
           return (
             <div
               key={i}
+              onClick={() => {
+                if (isHost && filled) kickPlayer(p!);
+              }}
               className="aspect-square rounded-lg flex items-center justify-center text-center px-1"
               style={{
                 background: filled ? "#141B26" : "transparent",
                 border: `1px solid ${
                   isMe ? "#C9A227" : filled ? "#2A3342" : "#1A2230"
                 }`,
+                cursor: isHost && filled ? "pointer" : "default",
               }}
             >
               {filled ? (
