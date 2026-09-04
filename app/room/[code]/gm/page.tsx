@@ -208,10 +208,14 @@ export default function GmDashboardPage() {
         <div className="text-[10px] tracking-[0.3em] text-muted mb-1">
           👑 لوحة الحكم
         </div>
-        <div className="font-display text-2xl text-gold">
+        <div className="font-display text-2xl text-gold mb-2">
           الجولة {room.round_number}
         </div>
-        <div dir="ltr" className="text-sm text-muted mt-1">
+        <div
+          dir="ltr"
+          className="inline-flex text-xs px-3 py-1 rounded-full"
+          style={{ background: "#141B26", border: "1px solid #2A3342", color: "#8A93A6" }}
+        >
           الأحياء: {aliveCount}/{players.length}
         </div>
       </div>
