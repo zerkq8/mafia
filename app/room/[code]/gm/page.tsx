@@ -7,6 +7,7 @@ import {
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
 import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
+import RoleIcon from "@/components/icons/RoleIcon";
 
 interface RoomRow {
   id: string;
@@ -36,6 +37,7 @@ export default function GmDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [actionError, setActionError] = useState("");
+  const [closing, setClosing] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -178,6 +180,28 @@ export default function GmDashboardPage() {
     });
   }
 
+  async function closeRoom() {
+    if (!room) return;
+    const ok = window.confirm(
+      "هل أنت متأكد من إغلاق الغرفة؟ سيتم حذف كل بيانات هذه الجولة نهائيًا لجميع اللاعبين."
+    );
+    if (!ok) return;
+
+    setClosing(true);
+    const supabase = getSupabaseBrowserClient();
+    const { error: delError } = await supabase
+      .from("rooms")
+      .delete()
+      .eq("id", room.id);
+
+    if (delError) {
+      setActionError("تعذّر إغلاق الغرفة: " + delError.message);
+      setClosing(false);
+      return;
+    }
+    router.push("/");
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center text-muted text-sm">
@@ -235,16 +259,25 @@ export default function GmDashboardPage() {
       <div className="flex flex-col gap-1.5">
         {players.map((p) => {
           const def = p.role ? ROLES[p.role] : null;
+          const iconColor = p.team === "mafia" ? "#C0392B" : "#C9A227";
           return (
             <div
               key={p.id}
-              className="flex items-center justify-between rounded-lg px-3 py-2.5"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5"
               style={{
                 background: "#141B26",
                 opacity: p.is_alive ? 1 : 0.45,
               }}
             >
-              <span className="flex flex-col">
+              {p.role ? (
+                <RoleIcon role={p.role} color={iconColor} size={30} />
+              ) : (
+                <div
+                  className="rounded-full"
+                  style={{ width: 30, height: 30, background: "#1E2733" }}
+                />
+              )}
+              <span className="flex flex-col flex-1">
                 <span className="text-sm text-cream">{p.name}</span>
                 <span className="text-[10px] text-muted">
                   {def ? def.nameAr : "بدون دور"}
@@ -291,6 +324,19 @@ export default function GmDashboardPage() {
           </div>
         ))}
       </div>
+
+      <button
+        onClick={closeRoom}
+        disabled={closing}
+        className="w-full rounded-xl py-3 text-xs font-bold mt-8 disabled:opacity-40"
+        style={{
+          background: "transparent",
+          border: "1px solid #8B2635",
+          color: "#8B2635",
+        }}
+      >
+        {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}
+      </button>
     </main>
   );
 }

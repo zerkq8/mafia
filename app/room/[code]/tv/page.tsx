@@ -83,6 +83,14 @@ export default function TvDisplayPage() {
         { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${room.id}` },
         () => load()
       )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "rooms", filter: `id=eq.${room.id}` },
+        () => {
+          setError("أغلق الحكم هذه الغرفة. انتهت اللعبة.");
+          setRoom(null);
+        }
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);

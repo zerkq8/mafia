@@ -66,6 +66,7 @@ export default function RoleRevealPage() {
 
   const [roomId, setRoomId] = useState<string | null>(null);
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  const [isAlive, setIsAlive] = useState(true);
   const [role, setRole] = useState<RoleKey | null>(null);
   const [team, setTeam] = useState<TeamKey | null>(null);
   const [loading, setLoading] = useState(true);
@@ -106,11 +107,14 @@ export default function RoleRevealPage() {
         const { data: sessionData } = await supabase.auth.getSession();
         const { data: myPlayerRow } = await supabase
           .from("players")
-          .select("id")
+          .select("id, is_alive")
           .eq("room_id", room.id)
           .eq("auth_id", sessionData.session?.user.id)
           .maybeSingle();
-        if (myPlayerRow) setMyPlayerId(myPlayerRow.id);
+        if (myPlayerRow) {
+          setMyPlayerId(myPlayerRow.id);
+          setIsAlive(myPlayerRow.is_alive);
+        }
 
         const { data, error: rpcError } = await supabase.rpc("get_my_role", {
           p_room_id: room.id,
@@ -170,6 +174,55 @@ export default function RoleRevealPage() {
     ping();
     const interval = setInterval(ping, 20000);
     return () => clearInterval(interval);
+  }, [myPlayerId]);
+
+  // مراقبة إغلاق الغرفة لحظيًا — لو الحكم قفلها أثناء اللعبة، وضّح للاعب بدل ما تعلّق صفحته بصمت
+  useEffect(() => {
+    if (!roomId) return;
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`room-close-watch-${roomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "rooms",
+          filter: `id=eq.${roomId}`,
+        },
+        () => {
+          setError("أغلق الحكم هذه الغرفة. انتهت اللعبة.");
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [roomId]);
+
+  // مراقبة حالة "حي/ميت" لحظيًا — لو الحكم أخرجك من اللعبة تظهر لك رسالة فورية
+  useEffect(() => {
+    if (!myPlayerId) return;
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`death-watch-${myPlayerId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "players",
+          filter: `id=eq.${myPlayerId}`,
+        },
+        (payload) => {
+          const alive = (payload.new as any)?.is_alive;
+          if (typeof alive === "boolean") setIsAlive(alive);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [myPlayerId]);
 
   const onGripDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -235,6 +288,23 @@ export default function RoleRevealPage() {
         >
           رجوع للغرفة
         </button>
+      </main>
+    );
+  }
+
+  if (!isAlive) {
+    return (
+      <main
+        className="min-h-screen flex flex-col items-center justify-center px-6 gap-3"
+        style={{ background: "#0A0000" }}
+      >
+        <div className="text-5xl mb-2">💀</div>
+        <p className="text-2xl font-extrabold" style={{ color: "#E05A4A" }}>
+          تم قتلك
+        </p>
+        <p className="text-xs text-center max-w-xs" style={{ color: "#8A93A6" }}>
+          خرجت من اللعبة. تقدر تتفرج على الباقي، بس ما عاد عندك أي تأثير على مجرياتها.
+        </p>
       </main>
     );
   }

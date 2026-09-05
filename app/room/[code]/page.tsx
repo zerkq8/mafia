@@ -317,6 +317,20 @@ export default function LobbyPage() {
   const total = room.target_player_count;
   const slots = Array.from({ length: total }, (_, i) => regularPlayers[i] || null);
 
+  async function shareRoom() {
+    const url = `${window.location.origin}/join/${code}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "مافيا الكويت", text: "انضم لغرفتي", url });
+      } catch {
+        // المستخدم ألغى المشاركة — تجاهل
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      window.alert("تم نسخ رابط الدعوة، أرسله للاعبين.");
+    }
+  }
+
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
       {actionError && (
@@ -324,7 +338,7 @@ export default function LobbyPage() {
       )}
       {/* صندوق الحكم — منفصل تمامًا عن عدّاد اللاعبين */}
       {hostPlayer && (
-        <div className="flex justify-center mb-5">
+        <div className="flex justify-center mb-3">
           <div
             className="flex items-center gap-2 rounded-full px-5 py-2"
             style={{ background: "#1E1508", border: "1px solid #C9A227" }}
@@ -337,6 +351,18 @@ export default function LobbyPage() {
               {hostPlayer.name}
             </span>
           </div>
+        </div>
+      )}
+
+      {isHost && (
+        <div className="flex justify-center mb-5">
+          <button
+            onClick={shareRoom}
+            className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-full"
+            style={{ border: "1px solid #2A3342", color: "#8A93A6" }}
+          >
+            🔗 مشاركة رابط الدعوة
+          </button>
         </div>
       )}
 
