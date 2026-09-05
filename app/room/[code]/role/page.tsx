@@ -236,8 +236,13 @@ export default function RoleRevealPage() {
     if (!dragging.current || !cardRef.current) return;
     const clientX = "clientX" in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
     const width = cardRef.current.offsetWidth || 1;
-    // السحب لليسار أو لليمين كلاهما يفتح الستارة أكثر — نستخدم القيمة المطلقة للفارق
-    const raw = startCurtain.current + Math.abs(startX.current - clientX) / width;
+    const distance = Math.abs(startX.current - clientX) / width;
+    // إذا بدأنا السحب والبطاقة شبه مغلقة → السحب بأي اتجاه يفتحها أكثر
+    // إذا بدأنا السحب والبطاقة شبه مفتوحة → السحب بأي اتجاه يقفلها (يرجعها)
+    const opening = startCurtain.current < 0.5;
+    const raw = opening
+      ? startCurtain.current + distance
+      : startCurtain.current - distance;
     setCurtain(Math.min(1, Math.max(0, raw)));
   }, []);
 
@@ -253,6 +258,7 @@ export default function RoleRevealPage() {
         }, 3000);
         return 1;
       }
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
       setRevealed(false);
       return 0;
     });
@@ -337,6 +343,7 @@ export default function RoleRevealPage() {
             border: "1px solid #2E2E2E",
             aspectRatio: "3 / 4",
             boxShadow: "0 12px 40px -12px rgba(0,0,0,0.6)",
+            touchAction: "none",
           }}
         >
           {/* محتوى الدور — أبيض/أسود بحت لكل الأدوار بلا استثناء، حتى لا تدل الألوان على الفريق */}
@@ -348,7 +355,13 @@ export default function RoleRevealPage() {
             }}
           >
             <div className="flex flex-col items-center gap-3 px-5 text-center">
-              <RoleIcon role={role} color="#EDEAE0" size={64} />
+              <img
+                src={`/roles/neutral/${role}.png`}
+                alt=""
+                width={64}
+                height={64}
+                style={{ objectFit: "contain" }}
+              />
               <div className="text-lg font-extrabold" style={{ color: "#FFFFFF" }}>
                 أنت {def.nameAr}
               </div>
@@ -376,11 +389,12 @@ export default function RoleRevealPage() {
           <div
             onMouseDown={onGripDown}
             onTouchStart={onGripDown}
-            className="absolute top-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-10"
+            className="absolute top-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-10 no-select"
             style={{
               left: `clamp(14px, ${curtainWidthPct}%, calc(100% - 14px))`,
               transform: "translate(-50%, -50%)",
               transition: dragging.current ? "none" : "left 0.25s ease",
+              touchAction: "none",
             }}
           >
             <div
@@ -398,29 +412,27 @@ export default function RoleRevealPage() {
             : "اسحب المقبض بخفة لكشف دورك"}
         </p>
 
-        {revealed && (
-          <div className="w-full max-w-xs flex flex-col gap-2 mt-4">
-            {isMafiaTeam && !showTeam && (
-              <button
-                onClick={loadTeam}
-                className="w-full rounded-full py-3 text-sm font-bold"
-                style={{ background: "#FFFFFF", color: "#000000" }}
-              >
-                أعضاء فريقك
-              </button>
-            )}
-            <button
-              onClick={closeCurtainNow}
-              className="w-full rounded-full py-3 text-sm font-bold"
-              style={{
-                background: "transparent",
-                border: "1px solid #333333",
-                color: "#AAAAAA",
-              }}
-            >
-              إخفاء الآن
-            </button>
-          </div>
+        {/* زر احتياطي يشتغل دايمًا — يضمن إخفاء البطاقة حتى لو تعطّل السحب لأي سبب */}
+        <button
+          onClick={closeCurtainNow}
+          className="w-full max-w-xs rounded-full py-3 text-sm font-bold mt-4"
+          style={{
+            background: "transparent",
+            border: "1px solid #333333",
+            color: "#AAAAAA",
+          }}
+        >
+          إخفاء الكرت
+        </button>
+
+        {revealed && isMafiaTeam && !showTeam && (
+          <button
+            onClick={loadTeam}
+            className="w-full max-w-xs rounded-full py-3 text-sm font-bold mt-2"
+            style={{ background: "#FFFFFF", color: "#000000" }}
+          >
+            أعضاء فريقك
+          </button>
         )}
 
         {showTeam && (

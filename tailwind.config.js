@@ -7,12 +7,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        ink: "#FBF6EC",
-        panel: "#FFFFFF",
-        border: "#E6DFC8",
-        gold: "#C9A227",
-        mafia: "#C0392B",
-        civilian: "#2F8F6F",
+        ink: "#F4EEE0",
+        panel: "#FDFBF6",
+        border: "#DED4B8",
+        gold: "#B6963F",
+        mafia: "#B2564C",
+        civilian: "#5C8E7B",
         muted: "#8B7F68",
         cream: "#2B2117",
       },

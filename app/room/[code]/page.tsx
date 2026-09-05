@@ -341,10 +341,10 @@ export default function LobbyPage() {
         <div className="flex justify-center mb-3">
           <div
             className="flex items-center gap-2 rounded-full px-5 py-2"
-            style={{ background: "#FCEFC7", border: "1px solid #C9A227" }}
+            style={{ background: "#FCEFC7", border: "1px solid #B6963F" }}
           >
             <span className="text-base">👑</span>
-            <span className="text-sm font-bold" style={{ color: "#C9A227" }}>
+            <span className="text-sm font-bold" style={{ color: "#B6963F" }}>
               الحكم
             </span>
             <span className="text-sm" style={{ color: "#2B2117" }}>
@@ -359,7 +359,7 @@ export default function LobbyPage() {
           <button
             onClick={shareRoom}
             className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-full"
-            style={{ border: "1px solid #E6DFC8", color: "#8B7F68" }}
+            style={{ border: "1px solid #DED4B8", color: "#8B7F68" }}
           >
             🔗 مشاركة رابط الدعوة
           </button>
@@ -399,9 +399,9 @@ export default function LobbyPage() {
               }}
               className="aspect-square rounded-lg flex items-center justify-center text-center px-1"
               style={{
-                background: filled ? "#FFFFFF" : "transparent",
+                background: filled ? "#FDFBF6" : "transparent",
                 border: `1px solid ${
-                  isMe ? "#C9A227" : filled ? "#E6DFC8" : "#F3ECDC"
+                  isMe ? "#B6963F" : filled ? "#DED4B8" : "#F3ECDC"
                 }`,
                 cursor: isHost && filled ? "pointer" : "default",
               }}
@@ -410,14 +410,14 @@ export default function LobbyPage() {
                 <div className="flex flex-col items-center gap-1">
                   <span
                     className="text-[10px] leading-tight break-all"
-                    style={{ color: isMe ? "#C9A227" : "#2B2117" }}
+                    style={{ color: isMe ? "#B6963F" : "#2B2117" }}
                   >
                     {p!.name}
                   </span>
                   <span
                     className="w-1.5 h-1.5 rounded-full"
                     style={{
-                      background: p!.is_ready ? "#3FA37A" : "#C0392B",
+                      background: p!.is_ready ? "#6FA98C" : "#B2564C",
                     }}
                   />
                 </div>
@@ -437,8 +437,8 @@ export default function LobbyPage() {
             onClick={toggleReady}
             className="w-full rounded-xl py-3 text-sm font-bold mb-3"
             style={{
-              background: me.is_ready ? "transparent" : "#C9A227",
-              border: me.is_ready ? "1px solid #E6DFC8" : "none",
+              background: me.is_ready ? "transparent" : "#B6963F",
+              border: me.is_ready ? "1px solid #DED4B8" : "none",
               color: me.is_ready ? "#8B7F68" : "#2B2117",
             }}
           >
@@ -449,7 +449,7 @@ export default function LobbyPage() {
             className="w-full rounded-xl py-3 text-xs font-bold"
             style={{
               background: "transparent",
-              border: "1px solid #E6DFC8",
+              border: "1px solid #DED4B8",
               color: "#8B7F68",
             }}
           >
@@ -464,7 +464,7 @@ export default function LobbyPage() {
             disabled={!canStart || starting}
             onClick={startGame}
             className="w-full rounded-xl py-3 text-sm font-bold mb-3 disabled:opacity-40"
-            style={{ background: "#C0392B", color: "#FFFFFF" }}
+            style={{ background: "#B2564C", color: "#FDFBF6" }}
           >
             {starting
               ? "جارٍ توزيع الأدوار..."
@@ -481,8 +481,8 @@ export default function LobbyPage() {
             className="w-full rounded-xl py-3 text-xs font-bold disabled:opacity-40"
             style={{
               background: "transparent",
-              border: "1px solid #C0392B",
-              color: "#C0392B",
+              border: "1px solid #B2564C",
+              color: "#B2564C",
             }}
           >
             {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}

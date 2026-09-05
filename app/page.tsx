@@ -162,12 +162,47 @@ export default function HomePage() {
       <div className="w-40 h-px bg-gold/40 mb-6" />
 
       {mode === "idle" && (
+        <div className="flex items-end justify-center gap-1.5 mb-8 flex-wrap max-w-sm">
+          {[
+            { role: "mafia", lift: 0 },
+            { role: "informer", lift: 10 },
+            { role: "mafia_cop", lift: -6 },
+            { role: "detective", lift: 8 },
+            { role: "doctor", lift: -4 },
+            { role: "sniper", lift: 6 },
+            { role: "civilian", lift: -8 },
+          ].map(({ role, lift }) => (
+            <div
+              key={role}
+              className="rounded-full overflow-hidden flex items-center justify-center"
+              style={{
+                width: 46,
+                height: 46,
+                background: "#FDFBF6",
+                border: "2px solid #DED4B8",
+                transform: `translateY(${lift}px)`,
+                boxShadow: "0 4px 10px -4px rgba(0,0,0,0.15)",
+              }}
+            >
+              <img
+                src={`/roles/color-sm/${role}.png`}
+                alt=""
+                width={30}
+                height={30}
+                style={{ objectFit: "contain" }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {mode === "idle" && (
         <div className="w-full max-w-xs flex flex-col gap-3">
           {myActiveRoom && (
             <button
               onClick={goToMyRoom}
               className="rounded-xl py-3 font-bold"
-              style={{ background: "#2F8F6F", color: "#FFFFFF" }}
+              style={{ background: "#5C8E7B", color: "#FDFBF6" }}
             >
               🔄 الرجوع لغرفتك النشطة
             </button>
@@ -243,7 +278,7 @@ export default function HomePage() {
                           <span
                             dir="ltr"
                             className="w-4 text-center text-sm font-bold"
-                            style={{ color: "#C9A227" }}
+                            style={{ color: "#B6963F" }}
                           >
                             {roleCounts[key]}
                           </span>
@@ -268,7 +303,7 @@ export default function HomePage() {
                     <span
                       dir="ltr"
                       className="text-sm font-bold"
-                      style={{ color: civilianCount < 0 ? "#C0392B" : "#3FA37A" }}
+                      style={{ color: civilianCount < 0 ? "#B2564C" : "#6FA98C" }}
                     >
                       {civilianCount}
                     </span>

@@ -7,7 +7,6 @@ import {
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
 import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
-import RoleIcon from "@/components/icons/RoleIcon";
 
 interface RoomRow {
   id: string;
@@ -238,7 +237,7 @@ export default function GmDashboardPage() {
         <div
           dir="ltr"
           className="inline-flex text-xs px-3 py-1 rounded-full"
-          style={{ background: "#FFFFFF", border: "1px solid #E6DFC8", color: "#8B7F68" }}
+          style={{ background: "#FDFBF6", border: "1px solid #DED4B8", color: "#8B7F68" }}
         >
           الأحياء: {aliveCount}/{players.length}
         </div>
@@ -251,7 +250,7 @@ export default function GmDashboardPage() {
       <button
         onClick={() => router.push(`/room/${code}/discussion`)}
         className="w-full rounded-xl py-3 text-sm font-bold mb-6"
-        style={{ background: "#FFFFFF", border: "1px solid #C9A227", color: "#C9A227" }}
+        style={{ background: "#FDFBF6", border: "1px solid #B6963F", color: "#B6963F" }}
       >
         🎙️ إدارة النقاش
       </button>
@@ -259,23 +258,28 @@ export default function GmDashboardPage() {
       <div className="flex flex-col gap-1.5">
         {players.map((p) => {
           const def = p.role ? ROLES[p.role] : null;
-          const iconColor = p.team === "mafia" ? "#C0392B" : "#C9A227";
           return (
             <div
               key={p.id}
               className="flex items-center gap-3 rounded-lg px-3 py-2.5"
               style={{
-                background: "#FFFFFF",
-                border: "1px solid #E6DFC8",
+                background: "#FDFBF6",
+                border: "1px solid #DED4B8",
                 opacity: p.is_alive ? 1 : 0.45,
               }}
             >
               {p.role ? (
-                <RoleIcon role={p.role} color={iconColor} size={30} />
+                <img
+                  src={`/roles/color-sm/${p.role}.png`}
+                  alt={def?.nameAr || ""}
+                  width={30}
+                  height={30}
+                  style={{ objectFit: "contain" }}
+                />
               ) : (
                 <div
                   className="rounded-full"
-                  style={{ width: 30, height: 30, background: "#E6DFC8" }}
+                  style={{ width: 30, height: 30, background: "#DED4B8" }}
                 />
               )}
               <span className="flex flex-col flex-1">
@@ -288,8 +292,8 @@ export default function GmDashboardPage() {
                 className="text-[10px] px-2 py-1 rounded-full"
                 style={{
                   background:
-                    p.team === "mafia" ? "#C0392B33" : "#2F8F6F33",
-                  color: p.team === "mafia" ? "#C0392B" : "#3FA37A",
+                    p.team === "mafia" ? "#B2564C33" : "#5C8E7B33",
+                  color: p.team === "mafia" ? "#B2564C" : "#6FA98C",
                 }}
               >
                 {p.team === "mafia" ? "مافيا" : p.team === "civilian" ? "شعب" : "—"}
@@ -315,9 +319,9 @@ export default function GmDashboardPage() {
               onClick={() => toggleAlive(p)}
               className="text-[11px] px-3 py-1.5 rounded-full font-bold"
               style={{
-                background: p.is_alive ? "#C0392B22" : "#2F8F6F22",
-                color: p.is_alive ? "#C0392B" : "#3FA37A",
-                border: `1px solid ${p.is_alive ? "#C0392B66" : "#2F8F6F66"}`,
+                background: p.is_alive ? "#B2564C22" : "#5C8E7B22",
+                color: p.is_alive ? "#B2564C" : "#6FA98C",
+                border: `1px solid ${p.is_alive ? "#B2564C66" : "#5C8E7B66"}`,
               }}
             >
               {p.is_alive ? "إخراج من اللعبة" : "إعادة إحياء"}
@@ -332,8 +336,8 @@ export default function GmDashboardPage() {
         className="w-full rounded-xl py-3 text-xs font-bold mt-8 disabled:opacity-40"
         style={{
           background: "transparent",
-          border: "1px solid #C0392B",
-          color: "#C0392B",
+          border: "1px solid #B2564C",
+          color: "#B2564C",
         }}
       >
         {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}
