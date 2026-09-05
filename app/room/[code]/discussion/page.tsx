@@ -276,12 +276,20 @@ export default function DiscussionPage() {
 
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
-      <div className="text-center mb-6">
+      <div className="text-center mb-4">
         <div className="text-[10px] tracking-[0.3em] text-muted mb-1">
           🎙️ إدارة النقاش
         </div>
         <div className="font-display text-2xl text-gold">دور الكلام</div>
       </div>
+
+      <button
+        onClick={() => router.push(`/room/${code}/gm`)}
+        className="w-full text-xs text-center py-2 mb-4"
+        style={{ color: "#8A93A6" }}
+      >
+        ← رجوع للوحة الحكم
+      </button>
 
       {actionError && (
         <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
@@ -370,13 +378,8 @@ export default function DiscussionPage() {
             const idx = room.speaking_order.indexOf(p.id);
             const hasSpoken =
               idx > -1 && idx <= room.speaking_index && room.speaking_turn_started_at !== null;
-            const iconColor = isLast
-              ? "#E05A4A"
-              : hasSpoken
-              ? "#3A4150"
-              : p.team === "mafia"
-              ? "#C0392B"
-              : "#C9A227";
+            // لون محايد بحت — بدون أي إشارة للفريق حتى بهذي الصفحة الخاصة بالحكم
+            const iconColor = isLast ? "#E05A4A" : hasSpoken ? "#3A4150" : "#8A93A6";
             return (
               <button
                 key={p.id}
@@ -403,14 +406,6 @@ export default function DiscussionPage() {
       </div>
 
       <div className="flex-1" />
-
-      <button
-        onClick={() => router.push(`/room/${code}/gm`)}
-        className="w-full text-xs text-center py-2"
-        style={{ color: "#8A93A6" }}
-      >
-        رجوع للوحة الحكم
-      </button>
     </main>
   );
 }
