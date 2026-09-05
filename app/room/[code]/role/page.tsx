@@ -7,6 +7,51 @@ import {
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
 import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
+import RoleIcon from "@/components/icons/RoleIcon";
+
+/** رسمة ظهر البطاقة — نمط زخرفي محايد بحت (أبيض/أسود) قبل الكشف */
+function CardBackArt() {
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 200 267"
+      preserveAspectRatio="xMidYMid slice"
+      style={{ opacity: 0.5 }}
+    >
+      <defs>
+        <pattern
+          id="sadu"
+          width="28"
+          height="16"
+          patternUnits="userSpaceOnUse"
+        >
+          <polyline
+            points="0,16 7,0 14,16 21,0 28,16"
+            fill="none"
+            stroke="#5A5A5A"
+            strokeWidth="1"
+          />
+        </pattern>
+      </defs>
+      <rect x="10" y="10" width="180" height="247" fill="url(#sadu)" opacity="0.35" />
+      <rect
+        x="16"
+        y="16"
+        width="168"
+        height="235"
+        rx="10"
+        fill="none"
+        stroke="#6B6B6B"
+        strokeWidth="1"
+      />
+      <g transform="translate(100,133.5)" stroke="#7A7A7A" strokeWidth="1.2" fill="none">
+        <rect x="-20" y="-20" width="40" height="40" transform="rotate(45)" />
+        <rect x="-10" y="-10" width="20" height="20" transform="rotate(45)" />
+      </g>
+    </svg>
+  );
+}
 
 interface TeamMember {
   player_id: string;
@@ -217,40 +262,44 @@ export default function RoleRevealPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         <div
           ref={cardRef}
-          className="relative w-32 rounded-2xl overflow-hidden"
-          style={{ border: "1px solid #333333", aspectRatio: "3 / 4" }}
+          className="relative w-60 rounded-3xl overflow-hidden"
+          style={{
+            border: "1px solid #2E2E2E",
+            aspectRatio: "3 / 4",
+            boxShadow: "0 12px 40px -12px rgba(0,0,0,0.6)",
+          }}
         >
           {/* محتوى الدور — أبيض/أسود بحت لكل الأدوار بلا استثناء، حتى لا تدل الألوان على الفريق */}
           <div
             className="absolute inset-0 flex items-center justify-center"
-            style={{ background: "#0A0A0A" }}
+            style={{
+              background:
+                "radial-gradient(ellipse at 50% 30%, #1C1C1C 0%, #0A0A0A 70%)",
+            }}
           >
-            <div className="flex flex-col items-center gap-2 px-3 text-center">
-              <div className="text-3xl grayscale">{def.emoji}</div>
-              <div className="text-sm font-extrabold" style={{ color: "#FFFFFF" }}>
+            <div className="flex flex-col items-center gap-3 px-5 text-center">
+              <RoleIcon role={role} color="#EDEAE0" size={64} />
+              <div className="text-lg font-extrabold" style={{ color: "#FFFFFF" }}>
                 أنت {def.nameAr}
               </div>
-              <div className="text-[10px] leading-relaxed" style={{ color: "#AAAAAA" }}>
+              <div className="text-xs leading-relaxed max-w-[11rem]" style={{ color: "#AAAAAA" }}>
                 {def.shortDescAr}
               </div>
             </div>
           </div>
 
-          {/* الستارة — غطاء محايد يسحبه اللاعب ليكشف البطاقة تدريجيًا */}
+          {/* الستارة — غطاء محايد بنمط زخرفي فني، يسحبه اللاعب ليكشف البطاقة تدريجيًا */}
           <div
-            className="absolute inset-y-0 left-0 flex items-center justify-center"
+            className="absolute inset-y-0 left-0 overflow-hidden"
             style={{
               width: `${curtainWidthPct}%`,
-              background: "#000000",
+              background:
+                "radial-gradient(ellipse at 50% 40%, #1A1A1A 0%, #050505 75%)",
               transition: dragging.current ? "none" : "width 0.25s ease",
-              borderLeft: curtainWidthPct > 0 && curtainWidthPct < 100 ? "1px solid #FFFFFF33" : "none",
+              borderLeft: curtainWidthPct > 0 && curtainWidthPct < 100 ? "1px solid #FFFFFF22" : "none",
             }}
           >
-            {curtainWidthPct > 15 && (
-              <div className="flex flex-col items-center gap-2 opacity-60">
-                <div className="text-2xl grayscale">🎴</div>
-              </div>
-            )}
+            <CardBackArt />
           </div>
 
           {/* المقبض — العنصر الوحيد القابل للسحب، خفيف وغير لافت */}

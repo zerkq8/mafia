@@ -6,7 +6,10 @@ import {
   ensureAnonymousSession,
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
-import { RoleKey } from "@/lib/roles";
+import { RoleKey, TeamKey } from "@/lib/roles";
+import RoleIcon from "@/components/icons/RoleIcon";
+
+const START_DURATION_SECONDS = 35;
 
 interface RoomRow {
   id: string;
@@ -16,7 +19,7 @@ interface RoomRow {
   speaking_index: number;
   speaking_turn_started_at: string | null;
   speaking_duration_seconds: number;
-  accused_player_id: string | null;
+  last_speaker_ids: string[];
 }
 
 interface PlayerRow {
@@ -24,6 +27,7 @@ interface PlayerRow {
   name: string;
   is_alive: boolean;
   role: RoleKey | null;
+  team: TeamKey | null;
 }
 
 export default function DiscussionPage() {
@@ -51,7 +55,7 @@ export default function DiscussionPage() {
       const { data: roomData, error: roomError } = await supabase
         .from("rooms")
         .select(
-          "id, round_number, host_auth_id, speaking_order, speaking_index, speaking_turn_started_at, speaking_duration_seconds, accused_player_id"
+          "id, round_number, host_auth_id, speaking_order, speaking_index, speaking_turn_started_at, speaking_duration_seconds, last_speaker_ids"
         )
         .eq("code", code)
         .maybeSingle();
@@ -78,19 +82,23 @@ export default function DiscussionPage() {
 
       const { data: assignments } = await supabase
         .from("role_assignments")
-        .select("player_id, role")
+        .select("player_id, role, team")
         .eq("room_id", roomData.id)
         .eq("round_number", roomData.round_number);
 
-      const roleMap = new Map((assignments || []).map((a) => [a.player_id, a.role]));
+      const roleMap = new Map((assignments || []).map((a) => [a.player_id, a]));
 
       setPlayers(
-        (playersData || []).map((p) => ({
-          id: p.id,
-          name: p.name,
-          is_alive: p.is_alive,
-          role: (roleMap.get(p.id) as RoleKey) || null,
-        }))
+        (playersData || []).map((p) => {
+          const a = roleMap.get(p.id);
+          return {
+            id: p.id,
+            name: p.name,
+            is_alive: p.is_alive,
+            role: (a?.role as RoleKey) || null,
+            team: (a?.team as TeamKey) || null,
+          };
+        })
       );
     } catch (e: any) {
       setError(e.message || "حدث خطأ غير متوقع.");
@@ -131,8 +139,6 @@ export default function DiscussionPage() {
 
   async function startDiscussion() {
     if (!room) return;
-    // يستثنى الشرطي الحقيقي والشرطي الوهمي من الاختيار العشوائي —
-    // لهم لحظتهم الخاصة بالادعاء أمام الجميع بشكل منفصل
     const eligible = players
       .filter((p) => p.is_alive && p.role !== "detective" && p.role !== "mafia_cop")
       .map((p) => p.id);
@@ -150,11 +156,28 @@ export default function DiscussionPage() {
         speaking_order: order,
         speaking_index: 0,
         speaking_turn_started_at: new Date().toISOString(),
-        accused_player_id: null,
+        speaking_duration_seconds: START_DURATION_SECONDS,
+        last_speaker_ids: [],
       })
       .eq("id", room.id);
     if (updateError) setActionError("تعذّر بدء النقاش: " + updateError.message);
     else setActionError("");
+  }
+
+  async function stopDiscussion() {
+    if (!room) return;
+    const ok = window.confirm("هل تريد إيقاف النقاش الحالي؟");
+    if (!ok) return;
+    const supabase = getSupabaseBrowserClient();
+    await supabase
+      .from("rooms")
+      .update({
+        speaking_order: [],
+        speaking_index: -1,
+        speaking_turn_started_at: null,
+        last_speaker_ids: [],
+      })
+      .eq("id", room.id);
   }
 
   async function nextSpeaker() {
@@ -182,19 +205,32 @@ export default function DiscussionPage() {
       .eq("id", room.id);
   }
 
-  async function markAccused(playerId: string) {
+  // تحديد لاعب كـ"آخر متكلم" — يدعم اثنين كحد أقصى (FIFO)
+  async function toggleLastSpeaker(playerId: string) {
     if (!room) return;
-    const order = [...(room.speaking_order || [])];
-    const idx = order.indexOf(playerId);
-    // ينتقل لآخر الدور فقط لو لسا ما تكلم
-    if (idx > -1 && idx > room.speaking_index) {
-      order.splice(idx, 1);
-      order.push(playerId);
+    let ids = [...(room.last_speaker_ids || [])];
+
+    if (ids.includes(playerId)) {
+      ids = ids.filter((id) => id !== playerId);
+    } else {
+      if (ids.length >= 2) ids.shift(); // نشيل الأقدم لو وصلنا الحد الأقصى
+      ids.push(playerId);
     }
+
+    // أعد ترتيب الدور: انقل من لسا ما تكلم من هالقائمة لآخر الطابور، بنفس ترتيب الاختيار
+    const order = [...(room.speaking_order || [])];
+    ids.forEach((id) => {
+      const idx = order.indexOf(id);
+      if (idx > -1 && idx > room.speaking_index) {
+        order.splice(idx, 1);
+        order.push(id);
+      }
+    });
+
     const supabase = getSupabaseBrowserClient();
     await supabase
       .from("rooms")
-      .update({ speaking_order: order, accused_player_id: playerId })
+      .update({ speaking_order: order, last_speaker_ids: ids })
       .eq("id", room.id);
   }
 
@@ -225,14 +261,14 @@ export default function DiscussionPage() {
     );
   }
 
-  // القائمة المتاحة للنقر (استبعاد الشرطي الحقيقي والوهمي دائمًا من الظهور هنا)
   const nameList = players.filter(
     (p) => p.is_alive && p.role !== "detective" && p.role !== "mafia_cop"
   );
 
   const started = room.speaking_index >= 0 && room.speaking_order.length > 0;
   const finished = started && room.speaking_index >= room.speaking_order.length;
-  const currentId = started && !finished ? room.speaking_order[room.speaking_index] : null;
+  const running = started && !finished;
+  const currentId = running ? room.speaking_order[room.speaking_index] : null;
   const elapsed = room.speaking_turn_started_at
     ? (Date.now() - new Date(room.speaking_turn_started_at).getTime()) / 1000
     : 0;
@@ -251,7 +287,7 @@ export default function DiscussionPage() {
         <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
       )}
 
-      {/* بطاقة الحالة الحالية — أهم معلومة، فوق وواضحة */}
+      {/* بطاقة الحالة الحالية */}
       <div
         className="rounded-2xl p-6 mb-5 text-center"
         style={{ background: "#141B26", border: "1px solid #2A3342" }}
@@ -261,7 +297,7 @@ export default function DiscussionPage() {
             لم يبدأ النقاش بعد
           </p>
         )}
-        {started && !finished && (
+        {running && (
           <>
             <p className="text-[10px] tracking-[0.2em] mb-2" style={{ color: "#8A93A6" }}>
               المتكلم الحالي
@@ -289,61 +325,77 @@ export default function DiscussionPage() {
       </div>
 
       {/* أزرار التحكم */}
-      <div className="flex items-center justify-center gap-3 mb-3">
+      <div className="flex items-center justify-center gap-3 mb-6">
         <button
           onClick={() => extendTime(30)}
-          disabled={!started || finished}
+          disabled={!running}
           className="text-xs px-4 py-3 rounded-full border border-border text-muted disabled:opacity-30"
         >
           +30 ثانية
         </button>
-        <button
-          onClick={startDiscussion}
-          className="text-sm font-bold px-8 py-3 rounded-full"
-          style={{ background: "#C9A227", color: "#0B0E14" }}
-        >
-          {started && !finished ? "إعادة البدء" : "ابدأ"}
-        </button>
+        {running ? (
+          <button
+            onClick={stopDiscussion}
+            className="text-sm font-bold px-8 py-3 rounded-full"
+            style={{ background: "#8B2635", color: "#EDEAE0" }}
+          >
+            إيقاف
+          </button>
+        ) : (
+          <button
+            onClick={startDiscussion}
+            className="text-sm font-bold px-8 py-3 rounded-full"
+            style={{ background: "#C9A227", color: "#0B0E14" }}
+          >
+            ابدأ
+          </button>
+        )}
         <button
           onClick={nextSpeaker}
-          disabled={!started || finished}
+          disabled={!running}
           className="text-xs px-4 py-3 rounded-full border border-border text-muted disabled:opacity-30"
         >
           التالي
         </button>
       </div>
 
-      <button
-        onClick={() => window.open(`/room/${code}/tv`, "_blank", "noopener")}
-        className="w-full text-sm text-center py-2 mb-6"
-        style={{ color: "#C9A227" }}
-      >
-        📺 فتح شاشة العرض للتلفزيون
-      </button>
-
-      {/* قائمة الأسماء لتحديد المتهم */}
+      {/* قائمة الأسماء لتحديد آخر متكلمين (حتى اثنين) */}
       <div className="rounded-2xl p-4 mb-6" style={{ background: "#0F141C", border: "1px solid #1E2733" }}>
-        <div className="text-xs mb-3" style={{ color: "#8A93A6" }}>
-          قائمة اللاعبين — اضغط على اسم ليتكلم آخرًا (متهم)
+        <div className="text-xs mb-3 text-center" style={{ color: "#8A93A6" }}>
+          اضغط على لاعب أو اثنين ليكونوا آخر من يتكلم
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2 justify-center">
           {nameList.map((p) => {
-            const isAccused = room.accused_player_id === p.id;
+            const isLast = room.last_speaker_ids?.includes(p.id);
             const idx = room.speaking_order.indexOf(p.id);
             const hasSpoken =
               idx > -1 && idx <= room.speaking_index && room.speaking_turn_started_at !== null;
+            const iconColor = isLast
+              ? "#E05A4A"
+              : hasSpoken
+              ? "#3A4150"
+              : p.team === "mafia"
+              ? "#C0392B"
+              : "#C9A227";
             return (
               <button
                 key={p.id}
-                onClick={() => markAccused(p.id)}
-                className="text-sm px-4 py-2 rounded-full"
+                onClick={() => toggleLastSpeaker(p.id)}
+                className="flex items-center gap-2 pr-4 pl-2 py-1.5 rounded-full"
                 style={{
-                  background: isAccused ? "#8B263533" : "#141B26",
-                  color: isAccused ? "#E05A4A" : hasSpoken ? "#4A5264" : "#EDEAE0",
-                  border: `1px solid ${isAccused ? "#8B263566" : "#2A3342"}`,
+                  background: isLast ? "#8B263533" : "#141B26",
+                  border: `1px solid ${isLast ? "#8B263566" : "#2A3342"}`,
                 }}
               >
-                {p.name}
+                {p.role && <RoleIcon role={p.role} color={iconColor} size={22} />}
+                <span
+                  className="text-sm"
+                  style={{
+                    color: isLast ? "#E05A4A" : hasSpoken ? "#4A5264" : "#EDEAE0",
+                  }}
+                >
+                  {p.name}
+                </span>
               </button>
             );
           })}

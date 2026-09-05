@@ -13,7 +13,7 @@ interface RoomRow {
   speaking_index: number;
   speaking_turn_started_at: string | null;
   speaking_duration_seconds: number;
-  accused_player_id: string | null;
+  last_speaker_ids: string[];
 }
 
 interface PlayerRow {
@@ -44,7 +44,7 @@ export default function TvDisplayPage() {
       const { data: roomData, error: roomError } = await supabase
         .from("rooms")
         .select(
-          "id, speaking_order, speaking_index, speaking_turn_started_at, speaking_duration_seconds, accused_player_id"
+          "id, speaking_order, speaking_index, speaking_turn_started_at, speaking_duration_seconds, last_speaker_ids"
         )
         .eq("code", code)
         .maybeSingle();
@@ -122,7 +122,7 @@ export default function TvDisplayPage() {
     : 0;
   const remaining = Math.max(0, Math.ceil(room.speaking_duration_seconds - elapsed));
   const pct = started && !finished ? Math.max(0, Math.min(1, remaining / room.speaking_duration_seconds)) : 0;
-  const isAccusedTurn = currentId && currentId === room.accused_player_id;
+  const isAccusedTurn = currentId && room.last_speaker_ids?.includes(currentId);
 
   return (
     <main
