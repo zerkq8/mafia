@@ -7,7 +7,7 @@ import {
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
 import { RoleKey, TeamKey } from "@/lib/roles";
-import RoleIcon from "@/components/icons/RoleIcon";
+import { NeutralPersonIcon } from "@/components/icons/RoleIcon";
 
 const START_DURATION_SECONDS = 35;
 
@@ -390,7 +390,8 @@ export default function DiscussionPage() {
                   border: `1px solid ${isLast ? "#8B263566" : "#2A3342"}`,
                 }}
               >
-                {p.role && <RoleIcon role={p.role} color={iconColor} size={22} />}
+                {/* شكل موحّد لكل اللاعبين بدون أي رمز يدل على الدور */}
+                <NeutralPersonIcon color={iconColor} size={22} />
                 <span
                   className="text-sm"
                   style={{

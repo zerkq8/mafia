@@ -1,3 +1,4 @@
+import React from "react";
 import { RoleKey } from "@/lib/roles";
 
 interface RoleIconProps {
@@ -7,103 +8,143 @@ interface RoleIconProps {
   className?: string;
 }
 
-/** إطار درع موحّد لكل الأدوار — الفرق فقط بالرمز الداخلي، أبدًا باللون. */
-const SHIELD_PATH =
-  "M12 2.5 L19.5 5.5 V11.2 C19.5 16.3 16.4 20.2 12 21.7 C7.6 20.2 4.5 16.3 4.5 11.2 V5.5 Z";
-
-function InnerGlyph({ role, color }: { role: RoleKey; color: string }) {
-  switch (role) {
-    case "mafia":
-      return (
-        <path
-          d="M6.5 10.5 C6.5 9.4 7.4 8.5 8.5 8.5 H11 C11 9.6 11.9 10.5 13 10.5 C14.1 10.5 15 9.6 15 8.5 H15.5 C16.6 8.5 17.5 9.4 17.5 10.5 V11.5 C17.5 12.6 16.6 13.5 15.5 13.5 H8.5 C7.4 13.5 6.5 12.6 6.5 11.5 Z"
-          fill="none"
-          stroke={color}
-          strokeWidth={1.1}
-          strokeLinejoin="round"
-        />
-      );
-    case "informer":
-      return (
-        <>
-          <path
-            d="M7 12 C8.5 9.5 10.1 8.3 12 8.3 C13.9 8.3 15.5 9.5 17 12 C15.5 14.5 13.9 15.7 12 15.7 C10.1 15.7 8.5 14.5 7 12 Z"
-            fill="none"
-            stroke={color}
-            strokeWidth={1.1}
-          />
-          <circle cx="12" cy="12" r="1.6" fill={color} />
-        </>
-      );
-    case "mafia_cop":
-      return (
-        <path
-          d="M12 8 L13.1 10.4 L15.7 10.7 L13.8 12.5 L14.3 15.1 L12 13.8 L9.7 15.1 L10.2 12.5 L8.3 10.7 L10.9 10.4 Z"
-          fill="none"
-          stroke={color}
-          strokeWidth={1}
-          strokeDasharray="1.5 1.2"
-          strokeLinejoin="round"
-        />
-      );
-    case "detective":
-      return (
-        <>
-          <circle cx="11" cy="10.5" r="3.2" fill="none" stroke={color} strokeWidth={1.2} />
-          <line x1="13.4" y1="12.9" x2="16" y2="15.5" stroke={color} strokeWidth={1.3} strokeLinecap="round" />
-        </>
-      );
-    case "doctor":
-      return (
-        <path
-          d="M11 7.5 H13 V10.5 H16 V12.5 H13 V15.5 H11 V12.5 H8 V10.5 H11 Z"
-          fill={color}
-        />
-      );
-    case "sniper":
-      return (
-        <>
-          <circle cx="12" cy="12" r="3.5" fill="none" stroke={color} strokeWidth={1.1} />
-          <line x1="12" y1="6.5" x2="12" y2="8.7" stroke={color} strokeWidth={1.1} />
-          <line x1="12" y1="15.3" x2="12" y2="17.5" stroke={color} strokeWidth={1.1} />
-          <line x1="6.5" y1="12" x2="8.7" y2="12" stroke={color} strokeWidth={1.1} />
-          <line x1="15.3" y1="12" x2="17.5" y2="12" stroke={color} strokeWidth={1.1} />
-        </>
-      );
-    case "civilian":
-    default:
-      return (
-        <>
-          <circle cx="12" cy="9.5" r="2.3" fill="none" stroke={color} strokeWidth={1.1} />
-          <path
-            d="M7.5 16.5 C7.5 13.9 9.5 12.3 12 12.3 C14.5 12.3 16.5 13.9 16.5 16.5"
-            fill="none"
-            stroke={color}
-            strokeWidth={1.1}
-            strokeLinecap="round"
-          />
-        </>
-      );
-  }
-}
-
-export default function RoleIcon({
-  role,
-  color = "currentColor",
-  size = 24,
-  className,
-}: RoleIconProps) {
+/** الشكل الموحّد (شارة/درع) لكل الأدوار — نفس الإطار الخارجي بالضبط، يختلف الرمز الداخلي بس */
+function ShieldFrame({
+  color,
+  size,
+  children,
+}: {
+  color: string;
+  size: number;
+  children: React.ReactNode;
+}) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="0 0 48 48"
       fill="none"
-      className={className}
-      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
     >
-      <path d={SHIELD_PATH} stroke={color} strokeWidth={1.3} strokeLinejoin="round" opacity={0.9} />
-      <InnerGlyph role={role} color={color} />
+      <path
+        d="M24 4L40 10V22C40 32 33 40 24 44C15 40 8 32 8 22V10L24 4Z"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinejoin="round"
+        fill="none"
+      />
+      {children}
     </svg>
+  );
+}
+
+export function NeutralPersonIcon({
+  color = "#8A93A6",
+  size = 24,
+  className,
+}: {
+  color?: string;
+  size?: number;
+  className?: string;
+}) {
+  return (
+    <ShieldFrame color={color} size={size}>
+      {/* شكل واحد محايد للجميع — بدون أي رمز يميّز دورًا عن آخر */}
+      <circle cx="24" cy="24" r="3" fill={color} />
+    </ShieldFrame>
+  );
+}
+
+export default function RoleIcon({
+  role,
+  color = "#EDEAE0",
+  size = 40,
+  className,
+}: RoleIconProps) {
+  const inner = (() => {
+    switch (role) {
+      case "mafia":
+        // خنجرين متقاطعين
+        return (
+          <g stroke={color} strokeWidth="1.8" strokeLinecap="round">
+            <line x1="17" y1="17" x2="31" y2="31" />
+            <line x1="31" y1="17" x2="17" y2="31" />
+            <circle cx="17" cy="17" r="1.6" fill={color} stroke="none" />
+            <circle cx="31" cy="17" r="1.6" fill={color} stroke="none" />
+          </g>
+        );
+      case "informer":
+        // عدسة مكبّرة (اكتشاف/تجسس)
+        return (
+          <g stroke={color} strokeWidth="1.8" strokeLinecap="round" fill="none">
+            <circle cx="21" cy="21" r="7" />
+            <line x1="26" y1="26" x2="32" y2="32" />
+          </g>
+        );
+      case "mafia_cop":
+        // نجمة شرطة فيها تصدّع خفيف يدل على الزيف
+        return (
+          <g stroke={color} strokeWidth="1.6" strokeLinejoin="round" fill="none">
+            <path d="M24 14L26.5 20.5L33 21L28 25.5L29.5 32L24 28.5L18.5 32L20 25.5L15 21L21.5 20.5L24 14Z" />
+            <line
+              x1="24"
+              y1="17"
+              x2="22"
+              y2="23"
+              stroke={color}
+              strokeWidth="1.2"
+              opacity="0.7"
+            />
+          </g>
+        );
+      case "detective":
+        // نجمة شرطة نظيفة متماسكة
+        return (
+          <path
+            d="M24 14L26.5 20.5L33 21L28 25.5L29.5 32L24 28.5L18.5 32L20 25.5L15 21L21.5 20.5L24 14Z"
+            stroke={color}
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+            fill="none"
+          />
+        );
+      case "doctor":
+        // صليب طبي
+        return (
+          <g stroke={color} strokeWidth="2" strokeLinecap="round">
+            <line x1="24" y1="16" x2="24" y2="30" />
+            <line x1="17" y1="23" x2="31" y2="23" />
+          </g>
+        );
+      case "sniper":
+        // دائرة تصويب
+        return (
+          <g stroke={color} strokeWidth="1.6" fill="none">
+            <circle cx="24" cy="23" r="7" />
+            <circle cx="24" cy="23" r="1.4" fill={color} stroke="none" />
+            <line x1="24" y1="13" x2="24" y2="17" strokeWidth="1.6" />
+            <line x1="24" y1="29" x2="24" y2="33" strokeWidth="1.6" />
+            <line x1="14" y1="23" x2="18" y2="23" strokeWidth="1.6" />
+            <line x1="30" y1="23" x2="34" y2="23" strokeWidth="1.6" />
+          </g>
+        );
+      case "civilian":
+      default:
+        // شخصان متداخلان
+        return (
+          <g stroke={color} strokeWidth="1.6" fill="none">
+            <circle cx="20" cy="19" r="4" />
+            <path d="M13 30c0-4 3-6.5 7-6.5s7 2.5 7 6.5" />
+            <circle cx="28" cy="19" r="4" opacity="0.6" />
+            <path d="M21 30c0-4 3-6.5 7-6.5s7 2.5 7 6.5" opacity="0.6" />
+          </g>
+        );
+    }
+  })();
+
+  return (
+    <ShieldFrame color={color} size={size}>
+      {inner}
+    </ShieldFrame>
   );
 }
