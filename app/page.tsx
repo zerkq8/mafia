@@ -167,7 +167,7 @@ export default function HomePage() {
             <button
               onClick={goToMyRoom}
               className="rounded-xl py-3 font-bold"
-              style={{ background: "#2F6F62", color: "#EDEAE0" }}
+              style={{ background: "#2F8F6F", color: "#FFFFFF" }}
             >
               🔄 الرجوع لغرفتك النشطة
             </button>
@@ -229,14 +229,14 @@ export default function HomePage() {
                       >
                         <span className="text-sm flex items-center gap-1.5">
                           <span>{def.emoji}</span>
-                          <span style={{ color: "#EDEAE0" }}>{def.nameAr}</span>
+                          <span style={{ color: "#2B2117" }}>{def.nameAr}</span>
                         </span>
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
                             onClick={() => updateRoleCount(roleKey, -1)}
                             className="w-7 h-7 rounded-full text-sm"
-                            style={{ background: "#1A2230", color: "#8A93A6" }}
+                            style={{ background: "#F3ECDC", color: "#8B7F68" }}
                           >
                             −
                           </button>
@@ -251,7 +251,7 @@ export default function HomePage() {
                             type="button"
                             onClick={() => updateRoleCount(roleKey, 1)}
                             className="w-7 h-7 rounded-full text-sm"
-                            style={{ background: "#1A2230", color: "#8A93A6" }}
+                            style={{ background: "#F3ECDC", color: "#8B7F68" }}
                           >
                             +
                           </button>
@@ -263,12 +263,12 @@ export default function HomePage() {
                   <div className="flex items-center justify-between pt-2 mt-1 border-t border-border">
                     <span className="text-sm flex items-center gap-1.5">
                       <span>👥</span>
-                      <span style={{ color: "#EDEAE0" }}>الشعب</span>
+                      <span style={{ color: "#2B2117" }}>الشعب</span>
                     </span>
                     <span
                       dir="ltr"
                       className="text-sm font-bold"
-                      style={{ color: civilianCount < 0 ? "#8B2635" : "#3FA37A" }}
+                      style={{ color: civilianCount < 0 ? "#C0392B" : "#3FA37A" }}
                     >
                       {civilianCount}
                     </span>

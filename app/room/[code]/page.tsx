@@ -341,13 +341,13 @@ export default function LobbyPage() {
         <div className="flex justify-center mb-3">
           <div
             className="flex items-center gap-2 rounded-full px-5 py-2"
-            style={{ background: "#1E1508", border: "1px solid #C9A227" }}
+            style={{ background: "#FCEFC7", border: "1px solid #C9A227" }}
           >
             <span className="text-base">👑</span>
             <span className="text-sm font-bold" style={{ color: "#C9A227" }}>
               الحكم
             </span>
-            <span className="text-sm" style={{ color: "#EDEAE0" }}>
+            <span className="text-sm" style={{ color: "#2B2117" }}>
               {hostPlayer.name}
             </span>
           </div>
@@ -359,7 +359,7 @@ export default function LobbyPage() {
           <button
             onClick={shareRoom}
             className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-full"
-            style={{ border: "1px solid #2A3342", color: "#8A93A6" }}
+            style={{ border: "1px solid #E6DFC8", color: "#8B7F68" }}
           >
             🔗 مشاركة رابط الدعوة
           </button>
@@ -399,9 +399,9 @@ export default function LobbyPage() {
               }}
               className="aspect-square rounded-lg flex items-center justify-center text-center px-1"
               style={{
-                background: filled ? "#141B26" : "transparent",
+                background: filled ? "#FFFFFF" : "transparent",
                 border: `1px solid ${
-                  isMe ? "#C9A227" : filled ? "#2A3342" : "#1A2230"
+                  isMe ? "#C9A227" : filled ? "#E6DFC8" : "#F3ECDC"
                 }`,
                 cursor: isHost && filled ? "pointer" : "default",
               }}
@@ -410,7 +410,7 @@ export default function LobbyPage() {
                 <div className="flex flex-col items-center gap-1">
                   <span
                     className="text-[10px] leading-tight break-all"
-                    style={{ color: isMe ? "#C9A227" : "#EDEAE0" }}
+                    style={{ color: isMe ? "#C9A227" : "#2B2117" }}
                   >
                     {p!.name}
                   </span>
@@ -438,8 +438,8 @@ export default function LobbyPage() {
             className="w-full rounded-xl py-3 text-sm font-bold mb-3"
             style={{
               background: me.is_ready ? "transparent" : "#C9A227",
-              border: me.is_ready ? "1px solid #2A3342" : "none",
-              color: me.is_ready ? "#8A93A6" : "#0B0E14",
+              border: me.is_ready ? "1px solid #E6DFC8" : "none",
+              color: me.is_ready ? "#8B7F68" : "#2B2117",
             }}
           >
             {me.is_ready ? "إلغاء الاستعداد" : "مستعد"}
@@ -449,8 +449,8 @@ export default function LobbyPage() {
             className="w-full rounded-xl py-3 text-xs font-bold"
             style={{
               background: "transparent",
-              border: "1px solid #2A3342",
-              color: "#8A93A6",
+              border: "1px solid #E6DFC8",
+              color: "#8B7F68",
             }}
           >
             الخروج من الغرفة
@@ -464,7 +464,7 @@ export default function LobbyPage() {
             disabled={!canStart || starting}
             onClick={startGame}
             className="w-full rounded-xl py-3 text-sm font-bold mb-3 disabled:opacity-40"
-            style={{ background: "#8B2635", color: "#EDEAE0" }}
+            style={{ background: "#C0392B", color: "#FFFFFF" }}
           >
             {starting
               ? "جارٍ توزيع الأدوار..."
@@ -481,8 +481,8 @@ export default function LobbyPage() {
             className="w-full rounded-xl py-3 text-xs font-bold disabled:opacity-40"
             style={{
               background: "transparent",
-              border: "1px solid #8B2635",
-              color: "#8B2635",
+              border: "1px solid #C0392B",
+              color: "#C0392B",
             }}
           >
             {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}

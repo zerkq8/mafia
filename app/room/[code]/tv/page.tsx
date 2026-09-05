@@ -100,7 +100,7 @@ export default function TvDisplayPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-black text-white text-2xl">
+      <main className="min-h-screen flex items-center justify-center text-2xl" style={{ background: "#FBF6EC", color: "#2B2117" }}>
         جارٍ التحميل...
       </main>
     );
@@ -108,7 +108,7 @@ export default function TvDisplayPage() {
 
   if (error || !room) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-black text-red-500 text-2xl">
+      <main className="min-h-screen flex items-center justify-center text-2xl" style={{ background: "#FBF6EC", color: "#C0392B" }}>
         {error}
       </main>
     );
@@ -137,7 +137,7 @@ export default function TvDisplayPage() {
       dir="rtl"
       className="min-h-screen flex flex-col items-center px-6 py-8"
       style={{
-        background: "radial-gradient(ellipse at top, #0F141C 0%, #05070A 60%)",
+        background: "radial-gradient(ellipse at top, #FFFFFF 0%, #FBF6EC 60%)",
         fontFamily: "'Tajawal', sans-serif",
       }}
     >
@@ -159,7 +159,7 @@ export default function TvDisplayPage() {
         {!started && (
           <div className="text-center">
             <div className="text-5xl mb-5 opacity-70">🎴</div>
-            <div className="text-xl sm:text-2xl" style={{ color: "#8A93A6" }}>
+            <div className="text-xl sm:text-2xl" style={{ color: "#8B7F68" }}>
               بانتظار بدء النقاش من الحكم
             </div>
           </div>
@@ -168,7 +168,7 @@ export default function TvDisplayPage() {
         {finished && (
           <div className="text-center">
             <div className="text-6xl mb-5">✅</div>
-            <div className="text-2xl sm:text-3xl" style={{ color: "#EDEAE0" }}>
+            <div className="text-2xl sm:text-3xl" style={{ color: "#2B2117" }}>
               انتهى دور الجميع بالكلام
             </div>
           </div>
@@ -179,9 +179,9 @@ export default function TvDisplayPage() {
             <div
               className="flex items-center gap-2 px-4 py-1.5 rounded-full text-sm tracking-[0.25em]"
               style={{
-                background: isAccusedTurn ? "#8B263522" : "#14212099",
-                border: `1px solid ${isAccusedTurn ? "#8B263566" : "#2A3342"}`,
-                color: isAccusedTurn ? "#E05A4A" : "#8A93A6",
+                background: isAccusedTurn ? "#C0392B22" : "#EAF5F099",
+                border: `1px solid ${isAccusedTurn ? "#C0392B66" : "#E6DFC8"}`,
+                color: isAccusedTurn ? "#E05A4A" : "#8B7F68",
               }}
             >
               {isAccusedTurn ? "🔴 المتهم يتكلم" : "دور الكلام"}
@@ -189,7 +189,7 @@ export default function TvDisplayPage() {
 
             <div
               className="text-5xl sm:text-6xl font-extrabold text-center leading-tight"
-              style={{ color: "#EDEAE0", fontFamily: "'Rakkas', serif" }}
+              style={{ color: "#2B2117", fontFamily: "'Rakkas', serif" }}
             >
               {playerName(currentId)}
             </div>
@@ -207,7 +207,7 @@ export default function TvDisplayPage() {
 
             <div
               className="w-full h-2.5 rounded-full overflow-hidden"
-              style={{ background: "#141B26" }}
+              style={{ background: "#F0E9D6" }}
             >
               <div
                 className="h-full rounded-full"
@@ -221,7 +221,7 @@ export default function TvDisplayPage() {
 
             <div
               className="text-xs tracking-[0.15em]"
-              style={{ color: "#5A6270" }}
+              style={{ color: "#B8AD95" }}
             >
               الدور {room.speaking_index + 1} من {room.speaking_order.length}
             </div>
@@ -229,12 +229,12 @@ export default function TvDisplayPage() {
             {nextId && (
               <div
                 className="mt-4 flex items-center gap-2 px-5 py-2.5 rounded-full"
-                style={{ background: "#0F141C", border: "1px solid #1E2733" }}
+                style={{ background: "#FFFFFF", border: "1px solid #E6DFC8" }}
               >
-                <span className="text-xs" style={{ color: "#5A6270" }}>
+                <span className="text-xs" style={{ color: "#B8AD95" }}>
                   التالي
                 </span>
-                <span className="text-base font-bold" style={{ color: "#EDEAE0" }}>
+                <span className="text-base font-bold" style={{ color: "#2B2117" }}>
                   {playerName(nextId)}
                 </span>
               </div>

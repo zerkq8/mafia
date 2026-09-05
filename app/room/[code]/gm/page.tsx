@@ -238,7 +238,7 @@ export default function GmDashboardPage() {
         <div
           dir="ltr"
           className="inline-flex text-xs px-3 py-1 rounded-full"
-          style={{ background: "#141B26", border: "1px solid #2A3342", color: "#8A93A6" }}
+          style={{ background: "#FFFFFF", border: "1px solid #E6DFC8", color: "#8B7F68" }}
         >
           الأحياء: {aliveCount}/{players.length}
         </div>
@@ -251,7 +251,7 @@ export default function GmDashboardPage() {
       <button
         onClick={() => router.push(`/room/${code}/discussion`)}
         className="w-full rounded-xl py-3 text-sm font-bold mb-6"
-        style={{ background: "#141B26", border: "1px solid #C9A227", color: "#C9A227" }}
+        style={{ background: "#FFFFFF", border: "1px solid #C9A227", color: "#C9A227" }}
       >
         🎙️ إدارة النقاش
       </button>
@@ -265,7 +265,8 @@ export default function GmDashboardPage() {
               key={p.id}
               className="flex items-center gap-3 rounded-lg px-3 py-2.5"
               style={{
-                background: "#141B26",
+                background: "#FFFFFF",
+                border: "1px solid #E6DFC8",
                 opacity: p.is_alive ? 1 : 0.45,
               }}
             >
@@ -274,7 +275,7 @@ export default function GmDashboardPage() {
               ) : (
                 <div
                   className="rounded-full"
-                  style={{ width: 30, height: 30, background: "#1E2733" }}
+                  style={{ width: 30, height: 30, background: "#E6DFC8" }}
                 />
               )}
               <span className="flex flex-col flex-1">
@@ -287,7 +288,7 @@ export default function GmDashboardPage() {
                 className="text-[10px] px-2 py-1 rounded-full"
                 style={{
                   background:
-                    p.team === "mafia" ? "#8B263533" : "#2F6F6233",
+                    p.team === "mafia" ? "#C0392B33" : "#2F8F6F33",
                   color: p.team === "mafia" ? "#C0392B" : "#3FA37A",
                 }}
               >
@@ -314,9 +315,9 @@ export default function GmDashboardPage() {
               onClick={() => toggleAlive(p)}
               className="text-[11px] px-3 py-1.5 rounded-full font-bold"
               style={{
-                background: p.is_alive ? "#8B263522" : "#2F6F6222",
+                background: p.is_alive ? "#C0392B22" : "#2F8F6F22",
                 color: p.is_alive ? "#C0392B" : "#3FA37A",
-                border: `1px solid ${p.is_alive ? "#8B263566" : "#2F6F6266"}`,
+                border: `1px solid ${p.is_alive ? "#C0392B66" : "#2F8F6F66"}`,
               }}
             >
               {p.is_alive ? "إخراج من اللعبة" : "إعادة إحياء"}
@@ -331,8 +332,8 @@ export default function GmDashboardPage() {
         className="w-full rounded-xl py-3 text-xs font-bold mt-8 disabled:opacity-40"
         style={{
           background: "transparent",
-          border: "1px solid #8B2635",
-          color: "#8B2635",
+          border: "1px solid #C0392B",
+          color: "#C0392B",
         }}
       >
         {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}

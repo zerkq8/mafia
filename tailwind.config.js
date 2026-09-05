@@ -7,14 +7,14 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        ink: "#0B0E14",
-        panel: "#141B26",
-        border: "#2A3342",
+        ink: "#FBF6EC",
+        panel: "#FFFFFF",
+        border: "#E6DFC8",
         gold: "#C9A227",
-        mafia: "#8B2635",
-        civilian: "#2F6F62",
-        muted: "#8A93A6",
-        cream: "#EDEAE0",
+        mafia: "#C0392B",
+        civilian: "#2F8F6F",
+        muted: "#8B7F68",
+        cream: "#2B2117",
       },
       fontFamily: {
         display: ["Rakkas", "serif"],
