@@ -157,7 +157,17 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-10">
+    <main className="min-h-screen flex flex-col items-center px-0 py-0">
+      <div className="w-full max-w-md relative">
+        <img
+          src="/hero/majlis-hero.jpg"
+          alt="ديوانية مافيا الكويت"
+          className="w-full object-cover"
+          style={{ maxHeight: 260, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}
+        />
+      </div>
+
+      <div className="flex flex-col items-center px-6 py-8 flex-1 w-full">
       <h1 className="font-display text-5xl text-gold mb-2">مافيا الكويت</h1>
       <div className="w-40 h-px bg-gold/40 mb-6" />
 
@@ -391,6 +401,7 @@ export default function HomePage() {
           </button>
         </div>
       )}
+      </div>
     </main>
   );
 }
