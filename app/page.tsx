@@ -112,6 +112,15 @@ export default function HomePage() {
     return json;
   }
 
+  const [poppedRole, setPoppedRole] = useState<string | null>(null);
+  const [sparkleKey, setSparkleKey] = useState(0);
+
+  function popIcon(role: string) {
+    setPoppedRole(role);
+    setSparkleKey((k) => k + 1);
+    setTimeout(() => setPoppedRole((r) => (r === role ? null : r)), 500);
+  }
+
   const civilianCount = calcCivilianCount(playerCount, roleCounts);
   const validation = validateRoleCounts(playerCount, roleCounts);
 
@@ -184,23 +193,50 @@ export default function HomePage() {
           ].map(({ role, lift }) => (
             <div
               key={role}
-              className="rounded-full overflow-hidden flex items-center justify-center"
+              onClick={() => popIcon(role)}
+              className={`relative flex items-center justify-center cursor-pointer ${
+                poppedRole === role ? "icon-pop" : ""
+              }`}
               style={{
                 width: 46,
                 height: 46,
-                background: "#FDFBF6",
-                border: "2px solid #DED4B8",
-                transform: `translateY(${lift}px)`,
-                boxShadow: "0 4px 10px -4px rgba(0,0,0,0.15)",
+                transform: poppedRole === role ? undefined : `translateY(${lift}px)`,
               }}
             >
-              <img
-                src={`/roles/color-sm/${role}.png`}
-                alt=""
-                width={30}
-                height={30}
-                style={{ objectFit: "contain" }}
-              />
+              {poppedRole === role &&
+                ["✦", "✧", "✦", "✧"].map((s, i) => (
+                  <span
+                    key={sparkleKey + "-" + i}
+                    className="sparkle text-xs"
+                    style={
+                      {
+                        color: "#B6963F",
+                        left: "50%",
+                        top: "50%",
+                        "--sx": `${[18, -18, 14, -14][i]}px`,
+                        "--sy": `${[-22, -20, 20, 18][i]}px`,
+                      } as React.CSSProperties
+                    }
+                  >
+                    {s}
+                  </span>
+                ))}
+              <div
+                className="rounded-full overflow-hidden flex items-center justify-center w-full h-full"
+                style={{
+                  background: "#FDFBF6",
+                  border: "2px solid #DED4B8",
+                  boxShadow: "0 4px 10px -4px rgba(0,0,0,0.15)",
+                }}
+              >
+                <img
+                  src={`/roles/color-sm/${role}.png`}
+                  alt=""
+                  width={30}
+                  height={30}
+                  style={{ objectFit: "contain" }}
+                />
+              </div>
             </div>
           ))}
         </div>

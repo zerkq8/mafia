@@ -397,33 +397,37 @@ export default function LobbyPage() {
               onClick={() => {
                 if (isHost && filled) kickPlayer(p!);
               }}
-              className="aspect-square rounded-lg flex items-center justify-center text-center px-1"
-              style={{
-                background: filled ? "#FDFBF6" : "transparent",
-                border: `1px solid ${
-                  isMe ? "#B6963F" : filled ? "#DED4B8" : "#F3ECDC"
-                }`,
-                cursor: isHost && filled ? "pointer" : "default",
-              }}
+              className="flex flex-col items-center gap-1"
+              style={{ cursor: isHost && filled ? "pointer" : "default" }}
             >
-              {filled ? (
-                <div className="flex flex-col items-center gap-1">
-                  <span
-                    className="text-[10px] leading-tight break-all"
-                    style={{ color: isMe ? "#B6963F" : "#2B2117" }}
-                  >
-                    {p!.name}
-                  </span>
-                  <span
-                    className="w-1.5 h-1.5 rounded-full"
-                    style={{
-                      background: p!.is_ready ? "#6FA98C" : "#B2564C",
-                    }}
-                  />
-                </div>
-              ) : (
-                <span className="text-border text-lg">·</span>
+              {filled && (
+                <span
+                  className="text-[9px] leading-tight text-center break-all max-w-full px-0.5"
+                  style={{ color: isMe ? "#B6963F" : "#2B2117" }}
+                >
+                  {p!.name}
+                </span>
               )}
+              <div
+                className="aspect-square w-full rounded-lg flex items-center justify-center overflow-hidden"
+                style={{
+                  background: filled ? "#FDFBF6" : "transparent",
+                  border: `1px solid ${
+                    isMe ? "#B6963F" : filled ? "#DED4B8" : "#F3ECDC"
+                  }`,
+                }}
+              >
+                {filled ? (
+                  <img
+                    src={p!.is_ready ? "/avatars/default-ready.png" : "/avatars/default-gray.png"}
+                    alt=""
+                    className="w-full h-full object-contain p-1.5"
+                    style={{ transition: "opacity 0.3s ease" }}
+                  />
+                ) : (
+                  <span className="text-border text-lg">·</span>
+                )}
+              </div>
             </div>
           );
         })}
