@@ -42,7 +42,7 @@ export default function JoinPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-6 py-10">
-      <h1 className="font-display text-4xl text-gold mb-2">مافيا الكويت</h1>
+      <h1 className="font-display text-4xl text-gold mb-2">لعبة المافيا</h1>
       <div className="w-32 h-px bg-gold/40 mb-8" />
 
       <div className="w-full max-w-xs flex flex-col gap-4">

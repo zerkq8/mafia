@@ -2,7 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "مافيا الكويت",
+  title: "لعبة المافيا",
   description: "نسخة إلكترونية من لعبة المافيا للديوانية",
 };
 

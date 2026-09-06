@@ -321,7 +321,7 @@ export default function LobbyPage() {
     const url = `${window.location.origin}/join/${code}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "مافيا الكويت", text: "انضم لغرفتي", url });
+        await navigator.share({ title: "لعبة المافيا", text: "انضم لغرفتي", url });
       } catch {
         // المستخدم ألغى المشاركة — تجاهل
       }

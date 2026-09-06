@@ -15,6 +15,15 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* تفاعل لمس بسيط لكل الأزرار بالموقع — تصغير خفيف عند الضغط */
+button {
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+button:active:not(:disabled) {
+  transform: scale(0.96);
+  opacity: 0.9;
+}
+
 /* منع التحديد أثناء سحب بطاقة الدور */
 .no-select {
   user-select: none;

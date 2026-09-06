@@ -170,14 +170,14 @@ export default function HomePage() {
       <div className="w-full max-w-md relative">
         <img
           src="/hero/majlis-hero.jpg"
-          alt="ديوانية مافيا الكويت"
+          alt="ديوانية لعبة المافيا"
           className="w-full object-cover"
           style={{ maxHeight: 260, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}
         />
       </div>
 
       <div className="flex flex-col items-center px-6 py-8 flex-1 w-full">
-      <h1 className="font-display text-5xl text-gold mb-2">مافيا الكويت</h1>
+      <h1 className="font-display text-5xl text-gold mb-2">لعبة المافيا</h1>
       <div className="w-40 h-px bg-gold/40 mb-6" />
 
       {mode === "idle" && (
