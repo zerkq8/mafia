@@ -169,15 +169,14 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col items-center px-0 py-0">
       <div className="w-full max-w-md relative">
         <img
-          src="/hero/majlis-hero.jpg"
-          alt="ديوانية لعبة المافيا"
+          src="/hero/banner.jpg"
+          alt="لعبة المافيا"
           className="w-full object-cover"
-          style={{ maxHeight: 260, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}
+          style={{ maxHeight: 300, borderBottomLeftRadius: 28, borderBottomRightRadius: 28 }}
         />
       </div>
 
       <div className="flex flex-col items-center px-6 py-8 flex-1 w-full">
-      <h1 className="font-display text-5xl text-gold mb-2">لعبة المافيا</h1>
       <div className="w-40 h-px bg-gold/40 mb-6" />
 
       {mode === "idle" && (
@@ -210,7 +209,7 @@ export default function HomePage() {
                     className="sparkle text-xs"
                     style={
                       {
-                        color: "#B6963F",
+                        color: "#CC8352",
                         left: "50%",
                         top: "50%",
                         "--sx": `${[18, -18, 14, -14][i]}px`,
@@ -224,8 +223,8 @@ export default function HomePage() {
               <div
                 className="rounded-full overflow-hidden flex items-center justify-center w-full h-full"
                 style={{
-                  background: "#FDFBF6",
-                  border: "2px solid #DED4B8",
+                  background: "#FFF8EC",
+                  border: "2px solid #E8D2AA",
                   boxShadow: "0 4px 10px -4px rgba(0,0,0,0.15)",
                 }}
               >
@@ -248,7 +247,7 @@ export default function HomePage() {
             <button
               onClick={goToMyRoom}
               className="rounded-xl py-3 font-bold"
-              style={{ background: "#5C8E7B", color: "#FDFBF6" }}
+              style={{ background: "#7A8B5F", color: "#FFF8EC" }}
             >
               🔄 الرجوع لغرفتك النشطة
             </button>
@@ -310,21 +309,21 @@ export default function HomePage() {
                       >
                         <span className="text-sm flex items-center gap-1.5">
                           <span>{def.emoji}</span>
-                          <span style={{ color: "#2B2117" }}>{def.nameAr}</span>
+                          <span style={{ color: "#2F1D19" }}>{def.nameAr}</span>
                         </span>
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
                             onClick={() => updateRoleCount(roleKey, -1)}
                             className="w-7 h-7 rounded-full text-sm"
-                            style={{ background: "#F3ECDC", color: "#8B7F68" }}
+                            style={{ background: "#F3ECDC", color: "#8B6F52" }}
                           >
                             −
                           </button>
                           <span
                             dir="ltr"
                             className="w-4 text-center text-sm font-bold"
-                            style={{ color: "#B6963F" }}
+                            style={{ color: "#CC8352" }}
                           >
                             {roleCounts[key]}
                           </span>
@@ -332,7 +331,7 @@ export default function HomePage() {
                             type="button"
                             onClick={() => updateRoleCount(roleKey, 1)}
                             className="w-7 h-7 rounded-full text-sm"
-                            style={{ background: "#F3ECDC", color: "#8B7F68" }}
+                            style={{ background: "#F3ECDC", color: "#8B6F52" }}
                           >
                             +
                           </button>
@@ -344,12 +343,12 @@ export default function HomePage() {
                   <div className="flex items-center justify-between pt-2 mt-1 border-t border-border">
                     <span className="text-sm flex items-center gap-1.5">
                       <span>👥</span>
-                      <span style={{ color: "#2B2117" }}>الشعب</span>
+                      <span style={{ color: "#2F1D19" }}>الشعب</span>
                     </span>
                     <span
                       dir="ltr"
                       className="text-sm font-bold"
-                      style={{ color: civilianCount < 0 ? "#B2564C" : "#6FA98C" }}
+                      style={{ color: civilianCount < 0 ? "#8B3A2E" : "#7A8B5F" }}
                     >
                       {civilianCount}
                     </span>

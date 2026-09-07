@@ -332,7 +332,19 @@ export default function LobbyPage() {
   }
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
+    <main className="min-h-screen relative px-5 py-8 max-w-md mx-auto flex flex-col">
+      <div
+        className="fixed inset-0 -z-10"
+        style={{
+          backgroundImage: "url(/lobby/lobby-bg.jpg)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      />
+      <div
+        className="fixed inset-0 -z-10"
+        style={{ background: "rgba(247, 236, 217, 0.82)" }}
+      />
       {actionError && (
         <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
       )}
@@ -341,13 +353,13 @@ export default function LobbyPage() {
         <div className="flex justify-center mb-3">
           <div
             className="flex items-center gap-2 rounded-full px-5 py-2"
-            style={{ background: "#FCEFC7", border: "1px solid #B6963F" }}
+            style={{ background: "#FCEFC7", border: "1px solid #CC8352" }}
           >
             <span className="text-base">👑</span>
-            <span className="text-sm font-bold" style={{ color: "#B6963F" }}>
+            <span className="text-sm font-bold" style={{ color: "#CC8352" }}>
               الحكم
             </span>
-            <span className="text-sm" style={{ color: "#2B2117" }}>
+            <span className="text-sm" style={{ color: "#2F1D19" }}>
               {hostPlayer.name}
             </span>
           </div>
@@ -359,7 +371,7 @@ export default function LobbyPage() {
           <button
             onClick={shareRoom}
             className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-full"
-            style={{ border: "1px solid #DED4B8", color: "#8B7F68" }}
+            style={{ border: "1px solid #E8D2AA", color: "#8B6F52" }}
           >
             🔗 مشاركة رابط الدعوة
           </button>
@@ -403,7 +415,7 @@ export default function LobbyPage() {
               {filled && (
                 <span
                   className="text-[9px] leading-tight text-center break-all max-w-full px-0.5"
-                  style={{ color: isMe ? "#B6963F" : "#2B2117" }}
+                  style={{ color: isMe ? "#CC8352" : "#2F1D19" }}
                 >
                   {p!.name}
                 </span>
@@ -411,9 +423,9 @@ export default function LobbyPage() {
               <div
                 className="aspect-square w-full rounded-lg flex items-center justify-center overflow-hidden"
                 style={{
-                  background: filled ? "#FDFBF6" : "transparent",
+                  background: filled ? "#FFF8EC" : "transparent",
                   border: `1px solid ${
-                    isMe ? "#B6963F" : filled ? "#DED4B8" : "#F3ECDC"
+                    isMe ? "#CC8352" : filled ? "#E8D2AA" : "#F3ECDC"
                   }`,
                 }}
               >
@@ -441,9 +453,9 @@ export default function LobbyPage() {
             onClick={toggleReady}
             className="w-full rounded-xl py-3 text-sm font-bold mb-3"
             style={{
-              background: me.is_ready ? "transparent" : "#B6963F",
-              border: me.is_ready ? "1px solid #DED4B8" : "none",
-              color: me.is_ready ? "#8B7F68" : "#2B2117",
+              background: me.is_ready ? "transparent" : "#CC8352",
+              border: me.is_ready ? "1px solid #E8D2AA" : "none",
+              color: me.is_ready ? "#8B6F52" : "#2F1D19",
             }}
           >
             {me.is_ready ? "إلغاء الاستعداد" : "مستعد"}
@@ -453,8 +465,8 @@ export default function LobbyPage() {
             className="w-full rounded-xl py-3 text-xs font-bold"
             style={{
               background: "transparent",
-              border: "1px solid #DED4B8",
-              color: "#8B7F68",
+              border: "1px solid #E8D2AA",
+              color: "#8B6F52",
             }}
           >
             الخروج من الغرفة
@@ -468,7 +480,7 @@ export default function LobbyPage() {
             disabled={!canStart || starting}
             onClick={startGame}
             className="w-full rounded-xl py-3 text-sm font-bold mb-3 disabled:opacity-40"
-            style={{ background: "#B2564C", color: "#FDFBF6" }}
+            style={{ background: "#8B3A2E", color: "#FFF8EC" }}
           >
             {starting
               ? "جارٍ توزيع الأدوار..."
@@ -485,8 +497,8 @@ export default function LobbyPage() {
             className="w-full rounded-xl py-3 text-xs font-bold disabled:opacity-40"
             style={{
               background: "transparent",
-              border: "1px solid #B2564C",
-              color: "#B2564C",
+              border: "1px solid #8B3A2E",
+              color: "#8B3A2E",
             }}
           >
             {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}
