@@ -219,3 +219,12 @@ begin
     limit 1;
 end;
 $$;
+
+-- =========================================================
+-- إضافة غير موجودة بالملف الأصلي: تفعيل Realtime
+-- =========================================================
+-- الواجهة تشترك بـ postgres_changes على online_rooms و online_players
+-- (غرفة الانتظار + صفحة اللعب) — بدون هذا التفعيل ما توصل التحديثات الحية.
+-- إذا ظهر خطأ "already member of publication"، تجاهله.
+alter publication supabase_realtime add table online_rooms;
+alter publication supabase_realtime add table online_players;
