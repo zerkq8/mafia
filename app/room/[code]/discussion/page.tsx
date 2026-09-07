@@ -316,7 +316,7 @@ export default function DiscussionPage() {
             <p
               dir="ltr"
               className="text-5xl font-display mb-2"
-              style={{ color: remaining <= 10 ? "#A8483A" : "#C9A227" }}
+              style={{ color: remaining <= 10 ? "#E05A4A" : "#C9A227" }}
             >
               {Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}
             </p>
@@ -379,7 +379,7 @@ export default function DiscussionPage() {
             const hasSpoken =
               idx > -1 && idx <= room.speaking_index && room.speaking_turn_started_at !== null;
             // لون محايد بحت — بدون أي إشارة للفريق حتى بهذي الصفحة الخاصة بالحكم
-            const iconColor = isLast ? "#A8483A" : hasSpoken ? "#3A4150" : "#8A93A6";
+            const iconColor = isLast ? "#E05A4A" : hasSpoken ? "#3A4150" : "#8A93A6";
             return (
               <button
                 key={p.id}
@@ -395,7 +395,7 @@ export default function DiscussionPage() {
                 <span
                   className="text-sm"
                   style={{
-                    color: isLast ? "#A8483A" : hasSpoken ? "#4A5264" : "#EDEAE0",
+                    color: isLast ? "#E05A4A" : hasSpoken ? "#4A5264" : "#EDEAE0",
                   }}
                 >
                   {p.name}
