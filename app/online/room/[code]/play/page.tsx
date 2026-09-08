@@ -49,6 +49,13 @@ const ROLE_IMAGE: Record<RoleKey, string> = {
   civilian: "/roles/color-sm/civilian.png",
 };
 
+const ROLE_REVEAL_CARD: Record<RoleKey, string> = {
+  mafia: "/roles/reveal-cards/mafia.jpg",
+  doctor: "/roles/reveal-cards/doctor.jpg",
+  detective: "/roles/reveal-cards/detective.jpg",
+  civilian: "/roles/reveal-cards/civilian.jpg",
+};
+
 export default function OnlinePlayPage() {
   const params = useParams();
   const router = useRouter();
@@ -513,21 +520,18 @@ export default function OnlinePlayPage() {
 
       {/* بطاقة كشف الدور — 5 ثواني، بدون صوت */}
       {room.status === "role_reveal" && !isSpectator && myRole && (
-        <div className="rounded-2xl p-6 mb-5 text-center" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
+        <div className="rounded-2xl overflow-hidden mb-5 text-center" style={{ border: "1px solid #2A3342" }}>
           <img
-            src={ROLE_IMAGE[myRole]}
+            src={ROLE_REVEAL_CARD[myRole]}
             alt={ROLE_NAME[myRole]}
-            width={72}
-            height={72}
-            className="mx-auto mb-3"
-            style={{ objectFit: "contain" }}
+            className="w-full"
+            style={{ objectFit: "cover" }}
           />
-          <p className="text-lg font-bold mb-2" style={{ color: "#EDEAE0" }}>
-            أنت {ROLE_NAME[myRole]}
-          </p>
-          <p dir="ltr" className="text-3xl font-display" style={{ color: "#C9A227" }}>
-            {countdown ?? 5}
-          </p>
+          <div className="py-3" style={{ background: "#141B26" }}>
+            <p dir="ltr" className="text-3xl font-display" style={{ color: "#C9A227" }}>
+              {countdown ?? 5}
+            </p>
+          </div>
         </div>
       )}
       {room.status === "role_reveal" && isSpectator && (
