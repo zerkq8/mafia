@@ -90,6 +90,8 @@ export default function OnlinePlayPage() {
   const voiceRef = useRef<VoiceChannel | null>(null);
   const [voiceError, setVoiceError] = useState("");
   const [micOn, setMicOn] = useState(false);
+  const [playbackBlocked, setPlaybackBlocked] = useState(false);
+  const [speakerLevel, setSpeakerLevel] = useState(0);
   const [micMuted, setMicMuted] = useState(false);
   const [listeningMuted, setListeningMuted] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
@@ -224,6 +226,40 @@ export default function OnlinePlayPage() {
   }, [load]);
 
   const prevStatusRef = useRef<string | null>(null);
+
+  // تحقق دوري هل انحظر تشغيل الصوت تلقائيًا — لإظهار زر تفعيل يدوي
+  useEffect(() => {
+    const active = room?.status === "mafia_recognition" || room?.status === "speaking_turn";
+    if (!active) {
+      setPlaybackBlocked(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      setPlaybackBlocked(voiceRef.current?.isPlaybackBlocked() ?? false);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [room?.status]);
+
+  function retryAudioPlayback() {
+    voiceRef.current?.retryPlayback();
+    setPlaybackBlocked(false);
+  }
+
+  // ---- قراءة مستوى صوت المتكلم الحالي لحظيًا (لتحريك أيقونة المربع مع الصوت) ----
+  useEffect(() => {
+    if (room?.status !== "speaking_turn" || !room.current_speaker_id) {
+      setSpeakerLevel(0);
+      return;
+    }
+    const isMe = room.current_speaker_id === myPlayerId;
+    const frame = setInterval(() => {
+      const level = isMe
+        ? voiceRef.current?.getAudioLevel() ?? 0
+        : voiceRef.current?.getAudioLevel(room.current_speaker_id!) ?? 0;
+      setSpeakerLevel(level);
+    }, 120);
+    return () => clearInterval(frame);
+  }, [room?.status, room?.current_speaker_id, myPlayerId]);
 
   // إعادة تصفير حالة "أرسلت" بس عند تغيّر حقيقي بالمرحلة (مو أول تحميل، عشان ما يمسح استرجاع الحالة)
   useEffect(() => {
@@ -594,6 +630,17 @@ export default function OnlinePlayPage() {
 
       {actionError && <p className="text-mafia text-xs text-center mb-3">{actionError}</p>}
       {voiceError && <p className="text-mafia text-xs text-center mb-3">{voiceError}</p>}
+      {playbackBlocked && (
+        <div className="flex justify-center mb-3">
+          <button
+            onClick={retryAudioPlayback}
+            className="text-xs px-5 py-2.5 rounded-full font-bold animate-pulse"
+            style={{ background: "#8B2635", color: "#EDEAE0" }}
+          >
+            🔊 اضغط لتفعيل الصوت
+          </button>
+        </div>
+      )}
 
       {/* بطاقة كشف الدور — 5 ثواني، بدون صوت */}
       {room.status === "role_reveal" && !isSpectator && myRole && (
@@ -625,29 +672,46 @@ export default function OnlinePlayPage() {
               {players
                 .filter((p) => !p.is_spectator && p.seat_side === side)
                 .sort((a, b) => (a.seat_number || 0) - (b.seat_number || 0))
-                .map((p) => (
-                  <div key={p.id} className="flex flex-col items-center">
-                    <span className="text-[9px] text-muted truncate max-w-full">{p.name}</span>
-                    <div
-                      className="w-full aspect-square rounded-md flex items-center justify-center text-sm font-bold"
-                      style={{
-                        background:
-                          room.current_speaker_id === p.id ? "#C9A22733" : "#141B26",
-                        border: `1px solid ${
-                          p.id === myPlayerId
-                            ? "#C9A227"
-                            : room.current_speaker_id === p.id
-                            ? "#C9A227"
-                            : "#2A3342"
-                        }`,
-                        color: p.is_alive ? "#EDEAE0" : "#4A5264",
-                        opacity: p.is_alive ? 1 : 0.5,
-                      }}
-                    >
-                      {p.seat_number}
+                .map((p) => {
+                  const isSpeakingNow =
+                    room.status === "speaking_turn" && room.current_speaker_id === p.id;
+                  const glow = isSpeakingNow ? 0.15 + speakerLevel * 0.6 : 0;
+                  return (
+                    <div key={p.id} className="flex flex-col items-center">
+                      <span className="text-[9px] text-muted truncate max-w-full">{p.name}</span>
+                      <div
+                        className="relative w-full aspect-square rounded-md flex items-center justify-center text-sm font-bold"
+                        style={{
+                          background: isSpeakingNow ? "#C9A22733" : "#141B26",
+                          border: `1px solid ${
+                            p.id === myPlayerId ? "#C9A227" : isSpeakingNow ? "#C9A227" : "#2A3342"
+                          }`,
+                          color: p.is_alive ? "#EDEAE0" : "#4A5264",
+                          opacity: p.is_alive ? 1 : 0.5,
+                          boxShadow: isSpeakingNow ? `0 0 ${10 + glow * 22}px ${glow}px #C9A227` : "none",
+                          transform: isSpeakingNow ? `scale(${1 + speakerLevel * 0.06})` : "scale(1)",
+                          transition: "transform 0.1s ease, box-shadow 0.1s ease",
+                        }}
+                      >
+                        {p.seat_number}
+                        {isSpeakingNow && (
+                          <span
+                            className="absolute -top-1.5 -left-1.5 text-[10px] rounded-full flex items-center justify-center"
+                            style={{
+                              width: 16,
+                              height: 16,
+                              background: "#C9A227",
+                              transform: `scale(${1 + speakerLevel * 0.5})`,
+                              transition: "transform 0.1s ease",
+                            }}
+                          >
+                            🎙️
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
             </div>
           ))}
         </div>

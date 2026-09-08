@@ -53,6 +53,7 @@ export default function OnlineWaitingRoomPage() {
   const [voiceError, setVoiceError] = useState("");
   const [micMuted, setMicMuted] = useState(false);
   const [listeningMuted, setListeningMuted] = useState(false);
+  const [playbackBlocked, setPlaybackBlocked] = useState(false);
 
   const me = players.find((p) => p.auth_id === myAuthId) || null;
   const isCreator = room?.created_by_auth_id === myAuthId;
@@ -308,6 +309,23 @@ export default function OnlineWaitingRoomPage() {
     };
   }, []);
 
+  // تحقق دوري هل انحظر تشغيل الصوت (Autoplay) — لإظهار زر تفعيل يدوي
+  useEffect(() => {
+    if (!voiceJoined) {
+      setPlaybackBlocked(false);
+      return;
+    }
+    const interval = setInterval(() => {
+      setPlaybackBlocked(voiceRef.current?.isPlaybackBlocked() ?? false);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [voiceJoined]);
+
+  function retryAudioPlayback() {
+    voiceRef.current?.retryPlayback();
+    setPlaybackBlocked(false);
+  }
+
   if (loading) {
     return (
       <main className="min-h-screen flex items-center justify-center text-muted text-sm">
@@ -472,6 +490,17 @@ export default function OnlineWaitingRoomPage() {
 
       {/* صوت غرفة الانتظار — جماعي واختياري */}
       {voiceError && <p className="text-mafia text-xs text-center mb-2">{voiceError}</p>}
+      {playbackBlocked && (
+        <div className="flex justify-center mb-2">
+          <button
+            onClick={retryAudioPlayback}
+            className="text-xs px-5 py-2.5 rounded-full font-bold animate-pulse"
+            style={{ background: "#8B2635", color: "#EDEAE0" }}
+          >
+            🔊 اضغط لتفعيل الصوت
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-center gap-2 mb-4">
         {!voiceJoined ? (
           <button

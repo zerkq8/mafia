@@ -17,6 +17,8 @@ export interface VoicePeer {
   peerId: string;
   connection: RTCPeerConnection;
   audioEl: HTMLAudioElement;
+  analyser?: AnalyserNode;
+  analyserData?: Uint8Array;
 }
 
 export class VoiceChannel {
@@ -29,6 +31,10 @@ export class VoiceChannel {
   private onError: (msg: string) => void;
   private micMuted = false;
   private listeningMuted = false;
+  private playbackBlocked = false;
+  private audioCtx: AudioContext | null = null;
+  private localAnalyser?: AnalyserNode;
+  private localAnalyserData?: Uint8Array;
 
   constructor(roomId: string, myPeerId: string, onError: (msg: string) => void) {
     this.roomId = roomId;
@@ -54,9 +60,16 @@ export class VoiceChannel {
       this.localStream.getTracks().forEach((t) => connection.addTrack(t, this.localStream!));
     }
 
+    const newPeer: VoicePeer = { peerId: otherPeerId, connection, audioEl };
+
     connection.ontrack = (e) => {
       audioEl.srcObject = e.streams[0];
       audioEl.muted = this.listeningMuted;
+      // تشغيل صريح — الاعتماد على autoplay وحده يفشل بصمت بأغلب متصفحات الجوال
+      audioEl.play().catch(() => {
+        this.playbackBlocked = true;
+      });
+      this.setupPeerAnalyser(newPeer, e.streams[0]);
     };
 
     connection.onicecandidate = (e) => {
@@ -70,18 +83,27 @@ export class VoiceChannel {
       }
     };
 
-    peer = { peerId: otherPeerId, connection, audioEl };
-    this.peers.set(otherPeerId, peer);
-    return peer;
+    this.peers.set(otherPeerId, newPeer);
+    return newPeer;
   }
 
   /** يبدأ الاتصال — يشترك بقناة الإشارات ويهيّئ الميكروفون
    *  micEnabled=false يخلي الطرف "استماع فقط" (مو مسموح له يتكلم) — للمستمعين
    */
   async start(micEnabled: boolean = true) {
+    // فتح إذن تشغيل الصوت بالمتصفح فور الضغطة (أول شي بالدالة، لسا داخل نفس بادرة المستخدم)
+    // يمنع فشل التشغيل التلقائي الصامت لاحقًا لما يوصل صوت الطرف الثاني بعد التفاوض
+    try {
+      const unlock = new Audio();
+      unlock.play().catch(() => {});
+    } catch {
+      // تجاهل
+    }
+
     if (micEnabled) {
       try {
         this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.setupLocalAnalyser();
       } catch {
         this.onError("تعذّر الوصول للميكروفون — تأكد إنك سمحت للموقع باستخدامه.");
       }
@@ -137,6 +159,9 @@ export class VoiceChannel {
     this.peers.clear();
     this.localStream?.getTracks().forEach((t) => t.stop());
     this.localStream = null;
+    this.audioCtx?.close().catch(() => {});
+    this.audioCtx = null;
+    this.localAnalyser = undefined;
     if (this.channel) {
       const supabase = getSupabaseBrowserClient();
       supabase.removeChannel(this.channel);
@@ -158,5 +183,68 @@ export class VoiceChannel {
     this.peers.forEach((p) => {
       p.audioEl.muted = muted;
     });
+  }
+
+  /** هل انحظر التشغيل التلقائي بأي اتصال؟ (يستخدمه العميل لإظهار زر "فعّل الصوت" احتياطي) */
+  isPlaybackBlocked() {
+    return this.playbackBlocked;
+  }
+
+  /** إعادة محاولة تشغيل كل الأصوات الواردة — استدعِها من داخل ضغطة زر مباشرة */
+  retryPlayback() {
+    this.playbackBlocked = false;
+    this.peers.forEach((p) => {
+      p.audioEl.play().catch(() => {
+        this.playbackBlocked = true;
+      });
+    });
+  }
+
+  private getAudioContext(): AudioContext {
+    if (!this.audioCtx) {
+      this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    return this.audioCtx;
+  }
+
+  private setupLocalAnalyser() {
+    if (!this.localStream) return;
+    try {
+      const ctx = this.getAudioContext();
+      const source = ctx.createMediaStreamSource(this.localStream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      this.localAnalyser = analyser;
+      this.localAnalyserData = new Uint8Array(analyser.frequencyBinCount);
+    } catch {
+      // بعض المتصفحات تحتاج تفاعل مستخدم إضافي — تجاهل بأمان
+    }
+  }
+
+  private setupPeerAnalyser(peer: VoicePeer, stream: MediaStream) {
+    try {
+      const ctx = this.getAudioContext();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      peer.analyser = analyser;
+      peer.analyserData = new Uint8Array(analyser.frequencyBinCount);
+    } catch {
+      // تجاهل بأمان
+    }
+  }
+
+  /** مستوى الصوت الحالي (0 إلى 1 تقريبًا) — بدون peerId يرجع مستوى ميكروفوني أنا */
+  getAudioLevel(peerId?: string): number {
+    const analyser = peerId ? this.peers.get(peerId)?.analyser : this.localAnalyser;
+    const data = peerId ? this.peers.get(peerId)?.analyserData : this.localAnalyserData;
+    if (!analyser || !data) return 0;
+    analyser.getByteFrequencyData(data as Uint8Array<ArrayBuffer>);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i];
+    const avg = sum / data.length; // 0-255
+    return Math.min(1, avg / 90); // تطبيع تقريبي لحساسية مريحة
   }
 }
