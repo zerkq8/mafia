@@ -25,10 +25,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "لسا ما خلص الوقت." }, { status: 409 });
     }
 
-    await admin
-      .from("online_rooms")
-      .update({ status: "day_vote", day_vote_started_at: new Date().toISOString() })
-      .eq("id", room.id);
+    const order: string[] = room.speaking_order || [];
+    const nextIndex = (room.speaking_index ?? -1) + 1;
+
+    if (nextIndex < order.length) {
+      // الدور للاعب التالي
+      await admin
+        .from("online_rooms")
+        .update({
+          speaking_index: nextIndex,
+          current_speaker_id: order[nextIndex],
+          speaking_started_at: new Date().toISOString(),
+        })
+        .eq("id", room.id);
+    } else {
+      // خلص دور الكلام لكل الأحياء — افتح التصويت
+      await admin
+        .from("online_rooms")
+        .update({
+          status: "day_vote",
+          day_vote_started_at: new Date().toISOString(),
+          current_speaker_id: null,
+        })
+        .eq("id", room.id);
+    }
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

@@ -19,6 +19,8 @@ interface RoomRow {
   day_vote_started_at: string | null;
   winner: string | null;
   last_voted_out_player_id: string | null;
+  speaking_order: string[];
+  speaking_index: number;
 }
 
 interface PlayerRow {
@@ -111,7 +113,7 @@ export default function OnlinePlayPage() {
       const { data: roomData, error: roomError } = await supabase
         .from("online_rooms")
         .select(
-          "id, status, round_number, last_death_player_id, role_reveal_started_at, mafia_recognition_started_at, current_speaker_id, speaking_started_at, day_vote_started_at, winner, last_voted_out_player_id"
+          "id, status, round_number, last_death_player_id, role_reveal_started_at, mafia_recognition_started_at, current_speaker_id, speaking_started_at, day_vote_started_at, winner, last_voted_out_player_id, speaking_order, speaking_index"
         )
         .eq("code", code)
         .maybeSingle();
@@ -440,12 +442,12 @@ export default function OnlinePlayPage() {
     (async () => {
       const voice = new VoiceChannel(room.id, myPlayerId, setVoiceError);
       voiceRef.current = voice;
-      await voice.start();
+      await voice.start(isSpeaker); // بس المتكلم الحالي يفتح ميكروفونه، الباقي استماع فقط
       if (cancelled) return;
-      setMicOn(true);
+      setMicOn(isSpeaker);
 
       if (isSpeaker) {
-        const listeners = players.filter((p) => p.is_alive && p.id !== myPlayerId);
+        const listeners = players.filter((p) => p.id !== myPlayerId);
         for (const listener of listeners) {
           await voice.callPeer(listener.id);
         }
@@ -482,7 +484,7 @@ export default function OnlinePlayPage() {
       setCountdown(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [room?.status, myAlive, myPlayerId]);
+  }, [room?.status, room?.current_speaker_id, myAlive, myPlayerId]);
 
   async function submitAction(actionType: string) {
     if (!selectedTarget) return;
@@ -722,17 +724,24 @@ export default function OnlinePlayPage() {
 
           {room.status === "speaking_turn" && (
             <>
-              <p className="text-xs mb-1" style={{ color: "#8A93A6" }}>يتكلم الآن</p>
+              <p className="text-xs mb-1" style={{ color: "#8A93A6" }}>
+                يتكلم الآن — دور {room.speaking_index + 1} من {room.speaking_order?.length || 0}
+              </p>
               <p className="text-lg font-bold mb-2" style={{ color: "#C9A227" }}>
-                {players.find((p) => p.id === room.current_speaker_id)?.name || "—"}
-                {room.current_speaker_id === myPlayerId && " (أنت)"}
+                {(() => {
+                  const speaker = players.find((p) => p.id === room.current_speaker_id);
+                  return speaker
+                    ? `${speaker.name}${speaker.seat_number ? ` (مقعد ${speaker.seat_number})` : ""}`
+                    : "—";
+                })()}
+                {room.current_speaker_id === myPlayerId && " — أنت"}
               </p>
               <p dir="ltr" className="text-3xl font-display" style={{ color: "#C9A227" }}>
                 {countdown ?? 35}
               </p>
               {room.current_speaker_id === myPlayerId && (
                 <p className="text-[11px] mt-2" style={{ color: "#8A93A6" }}>
-                  {micOn ? "🎙️ صوتك يوصل لجميع الأحياء الآن" : "جارٍ فتح الميكروفون..."}
+                  {micOn ? "🎙️ صوتك يوصل لجميع الحاضرين الآن" : "جارٍ فتح الميكروفون..."}
                 </p>
               )}
             </>

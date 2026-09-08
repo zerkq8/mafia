@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient, getAuthIdFromRequest } from "@/lib/supabase/admin";
+import { secureShuffle } from "@/lib/secureShuffle";
 
 export async function POST(req: Request) {
   try {
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
     }
 
     if (room.round_number === 1) {
-      // الجولة الأولى: بدون قتل — نروح مباشرة لدور الكلام بمتكلم عشوائي
+      // الجولة الأولى: بدون قتل — نبني دور كلام كامل لكل الأحياء بالترتيب
       const { data: aliveNow } = await admin
         .from("online_players")
         .select("id")
@@ -34,18 +35,16 @@ export async function POST(req: Request) {
         .eq("is_alive", true)
         .eq("is_spectator", false);
 
-      const alivePool = aliveNow || [];
-      const speaker =
-        alivePool.length > 0
-          ? alivePool[Math.floor(Math.random() * alivePool.length)]
-          : null;
+      const order = secureShuffle((aliveNow || []).map((p) => p.id));
 
       await admin
         .from("online_rooms")
         .update({
           status: "speaking_turn",
           last_death_player_id: null,
-          current_speaker_id: speaker?.id || null,
+          speaking_order: order,
+          speaking_index: 0,
+          current_speaker_id: order[0] || null,
           speaking_started_at: new Date().toISOString(),
         })
         .eq("id", room.id);

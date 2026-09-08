@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient, getAuthIdFromRequest } from "@/lib/supabase/admin";
+import { secureShuffle } from "@/lib/secureShuffle";
 
 type ActionType = "mafia_kill" | "doctor_protect" | "detective_investigate";
 
@@ -144,61 +145,57 @@ export async function POST(req: Request) {
 
       if (died) {
         await admin.from("online_players").update({ is_alive: false }).eq("id", died);
-
-        // فحص شرط الفوز مباشرة بعد موت ليلي (زي فحص التصويت النهاري تمامًا)
-        const { data: aliveAfterKill } = await admin
-          .from("online_players")
-          .select("id")
-          .eq("room_id", room.id)
-          .eq("is_alive", true)
-          .eq("is_spectator", false);
-
-        const { data: mafiaAssignments } = await admin
-          .from("online_role_assignments")
-          .select("player_id")
-          .eq("room_id", room.id)
-          .eq("role", "mafia");
-
-        const mafiaIds = new Set((mafiaAssignments || []).map((m) => m.player_id));
-        const aliveAfterKillIds = (aliveAfterKill || []).map((p) => p.id);
-        const aliveMafiaCount = aliveAfterKillIds.filter((id) => mafiaIds.has(id)).length;
-        const aliveTotal = aliveAfterKillIds.length;
-
-        let winner: string | null = null;
-        if (aliveMafiaCount === 0) {
-          winner = "civilians";
-        } else if (aliveMafiaCount === 1 && aliveTotal === 2) {
-          winner = "mafia";
-        }
-
-        if (winner) {
-          await admin
-            .from("online_rooms")
-            .update({ status: "game_over", winner, last_death_player_id: died })
-            .eq("id", room.id);
-          return NextResponse.json({ success: true });
-        }
       }
 
-      // اختر متكلم عشوائي من بين الأحياء (بعد تحديث حالة الموت لو صار)
-      const { data: aliveNow } = await admin
+      // فحص شرط الفوز — يجب أن يتحقق فورًا بعد القتل الليلي نفسه، مو بس بعد التصويت النهاري
+      const { data: aliveAfter } = await admin
         .from("online_players")
         .select("id")
         .eq("room_id", room.id)
-        .eq("is_alive", true);
+        .eq("is_alive", true)
+        .eq("is_spectator", false);
 
-      const alivePool = aliveNow || [];
-      const speaker =
-        alivePool.length > 0
-          ? alivePool[Math.floor(Math.random() * alivePool.length)]
-          : null;
+      const { data: mafiaAssignments } = await admin
+        .from("online_role_assignments")
+        .select("player_id")
+        .eq("room_id", room.id)
+        .eq("role", "mafia");
+
+      const mafiaIds = new Set((mafiaAssignments || []).map((m) => m.player_id));
+      const aliveAfterIds = (aliveAfter || []).map((p) => p.id);
+      const aliveMafiaCount = aliveAfterIds.filter((id) => mafiaIds.has(id)).length;
+      const aliveTotal = aliveAfterIds.length;
+
+      let winner: string | null = null;
+      if (aliveMafiaCount === 0) {
+        winner = "civilians";
+      } else if (aliveMafiaCount === 1 && aliveTotal === 2) {
+        winner = "mafia";
+      }
+
+      if (winner) {
+        await admin
+          .from("online_rooms")
+          .update({
+            status: "game_over",
+            winner,
+            last_death_player_id: died,
+          })
+          .eq("id", room.id);
+        return NextResponse.json({ success: true, winner });
+      }
+
+      // لا فوز بعد — ابنِ دور كلام كامل لكل الأحياء (غير المستمعين) بالترتيب
+      const order = secureShuffle(aliveAfterIds);
 
       await admin
         .from("online_rooms")
         .update({
           status: "speaking_turn",
           last_death_player_id: died,
-          current_speaker_id: speaker?.id || null,
+          speaking_order: order,
+          speaking_index: 0,
+          current_speaker_id: order[0] || null,
           speaking_started_at: new Date().toISOString(),
         })
         .eq("id", room.id);
