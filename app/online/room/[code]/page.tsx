@@ -387,7 +387,7 @@ export default function OnlineWaitingRoomPage() {
                     }}
                   >
                     <span
-                      className="absolute top-0.5 right-0.5 text-[10px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center"
+                      className="absolute top-0.5 right-0.5 text-[11px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center"
                       style={{ background: "#F0E9D6", color: "#8B7F68" }}
                     >
                       {i + 1}
@@ -414,14 +414,14 @@ export default function OnlineWaitingRoomPage() {
           className="flex flex-col items-center justify-center text-center"
           style={{ order: 2, width: 110, minHeight: 240 }}
         >
-          {isCreator && <p className="text-[10px] text-gold mb-1">👑 منشئ الغرفة</p>}
+          {isCreator && <p className="text-[11px] text-gold mb-1">👑 منشئ الغرفة</p>}
           <p dir="ltr" className="text-[11px] text-muted tracking-widest mb-3">{code}</p>
           <div dir="ltr" className="text-2xl font-display text-gold mb-1">
             {activePlayers.length}<span className="text-muted text-sm mx-0.5">/</span>8
           </div>
-          <p className="text-[10px] text-muted mb-2">جاهزون</p>
+          <p className="text-[11px] text-muted mb-2">جاهزون</p>
           {spectators.length > 0 && (
-            <p className="text-[10px]" style={{ color: "#8B7F68" }}>👁️ {spectators.length} مستمع</p>
+            <p className="text-[11px]" style={{ color: "#8B7F68" }}>👁️ {spectators.length} مستمع</p>
           )}
         </div>
       </div>

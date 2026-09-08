@@ -918,7 +918,7 @@ export default function OnlinePlayPage() {
             className="flex flex-col items-center justify-center text-center"
             style={{ order: 2, width: 110, minHeight: 200 }}
           >
-            <p className="text-[10px] tracking-widest text-muted mb-1">
+            <p className="text-[11px] tracking-widest text-muted mb-1">
               جولة {room.round_number}
             </p>
             <p className="text-sm font-bold mb-2" style={{ color: "#C9A227" }}>
@@ -943,7 +943,7 @@ export default function OnlinePlayPage() {
                 {countdown ?? nightCountdown}
               </p>
             )}
-            <p className="text-[10px] mt-2" style={{ color: "#8A93A6" }}>
+            <p className="text-[11px] mt-2" style={{ color: "#8A93A6" }}>
               {players.filter((p) => p.is_alive && !p.is_spectator).length} أحياء من{" "}
               {players.filter((p) => !p.is_spectator).length}
             </p>
