@@ -265,6 +265,13 @@ export default function HomePage() {
           >
             دخول غرفة
           </button>
+          <button
+            onClick={() => router.push("/online")}
+            className="rounded-xl py-3 font-bold"
+            style={{ background: "transparent", border: "1px solid #8B7F68", color: "#8B7F68" }}
+          >
+            🌐 أونلاين
+          </button>
         </div>
       )}
 
