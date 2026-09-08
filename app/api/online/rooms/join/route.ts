@@ -32,12 +32,6 @@ export async function POST(req: Request) {
     if (roomError || !room) {
       return NextResponse.json({ error: "رمز الغرفة غير صحيح." }, { status: 404 });
     }
-    if (room.status !== "waiting") {
-      return NextResponse.json(
-        { error: "هذي الجولة بدأت بالفعل." },
-        { status: 409 }
-      );
-    }
 
     const { data: existingPlayer } = await admin
       .from("online_players")
@@ -52,14 +46,20 @@ export async function POST(req: Request) {
     const { count } = await admin
       .from("online_players")
       .select("*", { count: "exact", head: true })
-      .eq("room_id", room.id);
-    if ((count ?? 0) >= MAX_PLAYERS) {
-      return NextResponse.json({ error: "الغرفة مكتملة (8 لاعبين)." }, { status: 409 });
-    }
+      .eq("room_id", room.id)
+      .eq("is_spectator", false);
+
+    const willBeSpectator = room.status !== "waiting" || (count ?? 0) >= MAX_PLAYERS;
 
     const { data: player, error: playerError } = await admin
       .from("online_players")
-      .insert({ room_id: room.id, auth_id: authId, name: cleanName })
+      .insert({
+        room_id: room.id,
+        auth_id: authId,
+        name: cleanName,
+        is_spectator: willBeSpectator,
+        is_ready: willBeSpectator, // المستمع ما يحتاج "استعداد"
+      })
       .select()
       .single();
     if (playerError) {
@@ -72,7 +72,7 @@ export async function POST(req: Request) {
       throw playerError;
     }
 
-    return NextResponse.json({ room, player, reconnected: false });
+    return NextResponse.json({ room, player, reconnected: false, isSpectator: willBeSpectator });
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "حدث خطأ غير متوقع." },

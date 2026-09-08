@@ -38,28 +38,32 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "أنت مو عضو بهذي الغرفة." }, { status: 403 });
     }
 
-    // اقلب حالة الاستعداد
-    const { error: updateError } = await admin
-      .from("online_players")
-      .update({ is_ready: !me.is_ready })
-      .eq("id", me.id);
-    if (updateError) throw updateError;
+    // اقلب حالة الاستعداد (المستمعون دايمًا "مستعدون"، ما ينطبق عليهم هذا الفعل عمليًا)
+    if (!me.is_spectator) {
+      const { error: updateError } = await admin
+        .from("online_players")
+        .update({ is_ready: !me.is_ready })
+        .eq("id", me.id);
+      if (updateError) throw updateError;
+    }
 
-    // تحقق: هل اكتمل العدد والكل مستعد؟
+    // تحقق: هل اكتمل عدد اللاعبين الفعليين (بدون المستمعين) والكل مستعد؟
     const { data: allPlayers, error: allError } = await admin
       .from("online_players")
-      .select("id, is_ready")
+      .select("id, is_ready, is_spectator")
       .eq("room_id", room.id);
     if (allError) throw allError;
 
+    const activePlayers = allPlayers.filter((p) => !p.is_spectator);
+
     if (
       room.status === "waiting" &&
-      allPlayers.length === 8 &&
-      allPlayers.every((p) => p.is_ready)
+      activePlayers.length === 8 &&
+      activePlayers.every((p) => p.is_ready)
     ) {
-      // ابدأ الجولة: وزّع الأدوار عشوائيًا وابدأ مرحلة المافيا
+      // وزّع الأدوار عشوائيًا
       const shuffledRoles = secureShuffle(FIXED_DECK);
-      const shuffledPlayers = secureShuffle(allPlayers.map((p) => p.id));
+      const shuffledPlayers = secureShuffle(activePlayers.map((p) => p.id));
 
       const assignments = shuffledPlayers.map((playerId, i) => ({
         room_id: room.id,
@@ -71,14 +75,26 @@ export async function POST(req: Request) {
         .insert(assignments);
       if (assignError) throw assignError;
 
+      // رتّب المقاعد عشوائيًا — 4 يمين و4 يسار، برقم مقعد 1-8
+      const seatOrder = secureShuffle(shuffledPlayers);
+      for (let i = 0; i < seatOrder.length; i++) {
+        await admin
+          .from("online_players")
+          .update({
+            seat_number: i + 1,
+            seat_side: i < 4 ? "right" : "left",
+          })
+          .eq("id", seatOrder[i]);
+      }
+
       await admin
         .from("online_rooms")
         .update({
-          status: "mafia_recognition",
+          status: "role_reveal",
           round_number: 1,
           pending_mafia_target_id: null,
           last_death_player_id: null,
-          mafia_recognition_started_at: new Date().toISOString(),
+          role_reveal_started_at: new Date().toISOString(),
         })
         .eq("id", room.id);
     }

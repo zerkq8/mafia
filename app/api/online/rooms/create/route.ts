@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
     const { data: room, error: roomError } = await admin
       .from("online_rooms")
-      .insert({ code, status: "waiting" })
+      .insert({ code, status: "waiting", created_by_auth_id: authId })
       .select()
       .single();
     if (roomError) throw roomError;

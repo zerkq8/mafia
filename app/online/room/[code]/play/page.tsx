@@ -12,6 +12,7 @@ interface RoomRow {
   status: string;
   round_number: number;
   last_death_player_id: string | null;
+  role_reveal_started_at: string | null;
   mafia_recognition_started_at: string | null;
   current_speaker_id: string | null;
   speaking_started_at: string | null;
@@ -22,6 +23,16 @@ interface PlayerRow {
   name: string;
   is_alive: boolean;
   auth_id: string;
+  is_spectator: boolean;
+  seat_number: number | null;
+  seat_side: string | null;
+}
+
+interface ChatMessage {
+  id: string;
+  sender_name: string;
+  message: string;
+  created_at: string;
 }
 
 const ROLE_NAME: Record<RoleKey, string> = {
@@ -29,6 +40,13 @@ const ROLE_NAME: Record<RoleKey, string> = {
   doctor: "الطبيب",
   detective: "الشرطي",
   civilian: "الشعب",
+};
+
+const ROLE_IMAGE: Record<RoleKey, string> = {
+  mafia: "/roles/color-sm/mafia.png",
+  doctor: "/roles/color-sm/doctor.png",
+  detective: "/roles/color-sm/detective.png",
+  civilian: "/roles/color-sm/civilian.png",
 };
 
 export default function OnlinePlayPage() {
@@ -54,12 +72,20 @@ export default function OnlinePlayPage() {
   } | null>(null);
   const [teamMembers, setTeamMembers] = useState<{ player_id: string; name: string }[]>([]);
   const [showTeam, setShowTeam] = useState(false);
+  const [isSpectator, setIsSpectator] = useState(false);
 
   // --- الصوت ---
   const voiceRef = useRef<VoiceChannel | null>(null);
   const [voiceError, setVoiceError] = useState("");
   const [micOn, setMicOn] = useState(false);
+  const [micMuted, setMicMuted] = useState(false);
+  const [listeningMuted, setListeningMuted] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+
+  // --- الدردشة ---
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [showChat, setShowChat] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -70,7 +96,7 @@ export default function OnlinePlayPage() {
       const { data: roomData, error: roomError } = await supabase
         .from("online_rooms")
         .select(
-          "id, status, round_number, last_death_player_id, mafia_recognition_started_at, current_speaker_id, speaking_started_at"
+          "id, status, round_number, last_death_player_id, role_reveal_started_at, mafia_recognition_started_at, current_speaker_id, speaking_started_at"
         )
         .eq("code", code)
         .maybeSingle();
@@ -88,7 +114,7 @@ export default function OnlinePlayPage() {
 
       const { data: playersData } = await supabase
         .from("online_players")
-        .select("id, name, is_alive, auth_id")
+        .select("id, name, is_alive, auth_id, is_spectator, seat_number, seat_side")
         .eq("room_id", roomData.id)
         .order("created_at", { ascending: true });
       setPlayers((playersData as PlayerRow[]) || []);
@@ -99,17 +125,19 @@ export default function OnlinePlayPage() {
       if (mine) {
         setMyPlayerId(mine.id);
         setMyAlive(mine.is_alive);
+        setIsSpectator(mine.is_spectator);
       }
 
-      const { data: roleData } = await supabase.rpc("get_my_online_role", {
-        p_room_id: roomData.id,
-      });
-      const roleRow = Array.isArray(roleData) ? roleData[0] : roleData;
-      let currentRole: RoleKey | null = null;
-      if (roleRow) {
-        currentRole = roleRow.role as RoleKey;
-        setMyRole(currentRole);
-        setMyAlive(roleRow.is_alive);
+      // المستمعون ما عندهم دور أصلاً — نتجاوز طلب الدور لهم
+      if (mine && !mine.is_spectator) {
+        const { data: roleData } = await supabase.rpc("get_my_online_role", {
+          p_room_id: roomData.id,
+        });
+        const roleRow = Array.isArray(roleData) ? roleData[0] : roleData;
+        if (roleRow) {
+          setMyRole(roleRow.role as RoleKey);
+          setMyAlive(roleRow.is_alive);
+        }
       }
 
       // تحقق هل سبق وأرسلت فعلك بهذي المرحلة (بعد Refresh مثلًا)
@@ -141,6 +169,14 @@ export default function OnlinePlayPage() {
           }
         }
       }
+
+      const { data: chatData } = await supabase
+        .from("online_chat_messages")
+        .select("id, sender_name, message, created_at")
+        .eq("room_id", roomData.id)
+        .order("created_at", { ascending: true })
+        .limit(100);
+      setChatMessages((chatData as ChatMessage[]) || []);
     } catch (e: any) {
       setError(e.message || "حدث خطأ غير متوقع.");
     } finally {
@@ -187,6 +223,73 @@ export default function OnlinePlayPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id]);
+
+  // ---- الدردشة (قناة لحظية منفصلة عشان ما نعيد تحميل كل شي مع كل رسالة) ----
+  useEffect(() => {
+    if (!room) return;
+    const supabase = getSupabaseBrowserClient();
+    const chatChannel = supabase
+      .channel(`online-chat-${room.id}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "online_chat_messages", filter: `room_id=eq.${room.id}` },
+        (payload) => {
+          setChatMessages((prev) => [...prev, payload.new as ChatMessage]);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(chatChannel);
+    };
+  }, [room?.id]);
+
+  async function sendChatMessage() {
+    const text = chatInput.trim();
+    if (!text || !room || !myPlayerId) return;
+    setChatInput("");
+    const supabase = getSupabaseBrowserClient();
+    const me = players.find((p) => p.id === myPlayerId);
+    await supabase.from("online_chat_messages").insert({
+      room_id: room.id,
+      sender_player_id: myPlayerId,
+      sender_name: me?.name || "لاعب",
+      message: text.slice(0, 300),
+    });
+  }
+
+  // ---- مرحلة كشف الدور (5 ثواني، بدون صوت) ----
+  useEffect(() => {
+    if (!room || room.status !== "role_reveal" || isSpectator) return;
+
+    let cancelled = false;
+    const startedAt = new Date(room.role_reveal_started_at!).getTime();
+    const timer = setInterval(async () => {
+      if (cancelled) return;
+      const remaining = Math.max(0, 5 - Math.floor((Date.now() - startedAt) / 1000));
+      setCountdown(remaining);
+      if (remaining <= 0) {
+        clearInterval(timer);
+        try {
+          const supabase = getSupabaseBrowserClient();
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData.session?.access_token;
+          await fetch("/api/online/rooms/advance-role-reveal", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ roomCode: code }),
+          });
+        } catch {
+          // لاعب ثاني بيحاول برضه
+        }
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      setCountdown(null);
+    };
+  }, [room?.status, isSpectator]);
 
   // ---- صوت المافيا الخاص (15 ثانية قبل أول ليلة) ----
   useEffect(() => {
@@ -377,7 +480,7 @@ export default function OnlinePlayPage() {
     );
   }
 
-  const alivePlayers = players.filter((p) => p.is_alive);
+  const alivePlayers = players.filter((p) => p.is_alive && !p.is_spectator);
   const isMyTurn =
     (room.status === "mafia_phase" && myRole === "mafia") ||
     (room.status === "detective_phase" && myRole === "detective") ||
@@ -392,6 +495,7 @@ export default function OnlinePlayPage() {
       <div className="text-center mb-6">
         <p className="text-[10px] tracking-[0.3em] text-muted mb-1">الجولة {room.round_number}</p>
         <p className="font-display text-2xl text-gold">
+          {room.status === "role_reveal" && "🎴 كشف الأدوار"}
           {room.status === "mafia_recognition" && "🔴 المافيا تتعارف"}
           {room.status === "mafia_phase" && "🌙 مرحلة المافيا"}
           {room.status === "detective_phase" && "🌙 مرحلة الشرطي"}
@@ -399,11 +503,110 @@ export default function OnlinePlayPage() {
           {room.status === "speaking_turn" && "☀️ دور الكلام"}
           {room.status === "speaking_done" && "☀️ انتهى الكلام"}
         </p>
-        <p className="text-[11px] text-muted mt-1">دورك: {myRole ? ROLE_NAME[myRole] : "—"}</p>
+        <p className="text-[11px] text-muted mt-1">
+          {isSpectator ? "أنت مستمع/متفرج" : `دورك: ${myRole ? ROLE_NAME[myRole] : "—"}`}
+        </p>
       </div>
 
       {actionError && <p className="text-mafia text-xs text-center mb-3">{actionError}</p>}
       {voiceError && <p className="text-mafia text-xs text-center mb-3">{voiceError}</p>}
+
+      {/* بطاقة كشف الدور — 5 ثواني، بدون صوت */}
+      {room.status === "role_reveal" && !isSpectator && myRole && (
+        <div className="rounded-2xl p-6 mb-5 text-center" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
+          <img
+            src={ROLE_IMAGE[myRole]}
+            alt={ROLE_NAME[myRole]}
+            width={72}
+            height={72}
+            className="mx-auto mb-3"
+            style={{ objectFit: "contain" }}
+          />
+          <p className="text-lg font-bold mb-2" style={{ color: "#EDEAE0" }}>
+            أنت {ROLE_NAME[myRole]}
+          </p>
+          <p dir="ltr" className="text-3xl font-display" style={{ color: "#C9A227" }}>
+            {countdown ?? 5}
+          </p>
+        </div>
+      )}
+      {room.status === "role_reveal" && isSpectator && (
+        <p className="text-sm text-center py-10" style={{ color: "#8A93A6" }}>
+          اللاعبون يشوفون أدوارهم الآن...
+        </p>
+      )}
+
+      {/* ترتيب المقاعد — 4 يمين و4 يسار، بالاسم فوق ورقم المقعد داخل المربع */}
+      {!["waiting", "role_reveal"].includes(room.status) && (
+        <div className="grid grid-cols-2 gap-3 mb-5">
+          {["right", "left"].map((side) => (
+            <div key={side} className="flex flex-col gap-1.5">
+              {players
+                .filter((p) => !p.is_spectator && p.seat_side === side)
+                .sort((a, b) => (a.seat_number || 0) - (b.seat_number || 0))
+                .map((p) => (
+                  <div key={p.id} className="flex flex-col items-center">
+                    <span className="text-[9px] text-muted truncate max-w-full">{p.name}</span>
+                    <div
+                      className="w-full aspect-square rounded-md flex items-center justify-center text-sm font-bold"
+                      style={{
+                        background:
+                          room.current_speaker_id === p.id ? "#C9A22733" : "#141B26",
+                        border: `1px solid ${
+                          p.id === myPlayerId
+                            ? "#C9A227"
+                            : room.current_speaker_id === p.id
+                            ? "#C9A227"
+                            : "#2A3342"
+                        }`,
+                        color: p.is_alive ? "#EDEAE0" : "#4A5264",
+                        opacity: p.is_alive ? 1 : 0.5,
+                      }}
+                    >
+                      {p.seat_number}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* أزرار كتم الصوت — تظهر بس وقت وجود اتصال صوتي فعلي */}
+      {micOn && (
+        <div className="flex items-center justify-center gap-3 mb-4">
+          <button
+            onClick={() => {
+              const next = !micMuted;
+              setMicMuted(next);
+              voiceRef.current?.setMicMuted(next);
+            }}
+            className="text-xs px-4 py-2 rounded-full"
+            style={{
+              background: micMuted ? "#8B263533" : "#141B26",
+              border: `1px solid ${micMuted ? "#8B2635" : "#2A3342"}`,
+              color: micMuted ? "#E05A4A" : "#8A93A6",
+            }}
+          >
+            {micMuted ? "🔇 الميكروفون مكتوم" : "🎙️ كتم الميكروفون"}
+          </button>
+          <button
+            onClick={() => {
+              const next = !listeningMuted;
+              setListeningMuted(next);
+              voiceRef.current?.setListeningMuted(next);
+            }}
+            className="text-xs px-4 py-2 rounded-full"
+            style={{
+              background: listeningMuted ? "#8B263533" : "#141B26",
+              border: `1px solid ${listeningMuted ? "#8B2635" : "#2A3342"}`,
+              color: listeningMuted ? "#E05A4A" : "#8A93A6",
+            }}
+          >
+            {listeningMuted ? "🔇 السماع مكتوم" : "🔊 كتم السماع"}
+          </button>
+        </div>
+      )}
 
       {room.status === "mafia_recognition" && (
         <div className="rounded-2xl p-6 mb-5 text-center" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
@@ -544,6 +747,53 @@ export default function OnlinePlayPage() {
           )}
         </div>
       )}
+
+      {/* الدردشة العامة — للاعبين والمستمعين */}
+      <div className="mt-6">
+        <button
+          onClick={() => setShowChat((v) => !v)}
+          className="w-full text-xs text-center py-2 rounded-full"
+          style={{ border: "1px solid #2A3342", color: "#8A93A6" }}
+        >
+          💬 {showChat ? "إخفاء الدردشة" : `الدردشة (${chatMessages.length})`}
+        </button>
+
+        {showChat && (
+          <div className="mt-3 rounded-2xl p-3" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
+            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto mb-2">
+              {chatMessages.length === 0 && (
+                <p className="text-[11px] text-center py-4" style={{ color: "#5A6270" }}>
+                  ما فيه رسائل بعد
+                </p>
+              )}
+              {chatMessages.map((m) => (
+                <div key={m.id} className="text-xs">
+                  <span className="font-bold" style={{ color: "#C9A227" }}>{m.sender_name}: </span>
+                  <span style={{ color: "#EDEAE0" }}>{m.message}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendChatMessage()}
+                maxLength={300}
+                placeholder="اكتب رسالة..."
+                className="flex-1 rounded-lg px-3 py-2 text-xs bg-transparent outline-none"
+                style={{ border: "1px solid #2A3342", color: "#EDEAE0" }}
+              />
+              <button
+                onClick={sendChatMessage}
+                className="text-xs px-4 rounded-lg font-bold"
+                style={{ background: "#C9A227", color: "#0B0E14" }}
+              >
+                إرسال
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

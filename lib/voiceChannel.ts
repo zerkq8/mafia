@@ -27,6 +27,8 @@ export class VoiceChannel {
   private localStream: MediaStream | null = null;
   private peers = new Map<string, VoicePeer>();
   private onError: (msg: string) => void;
+  private micMuted = false;
+  private listeningMuted = false;
 
   constructor(roomId: string, myPeerId: string, onError: (msg: string) => void) {
     this.roomId = roomId;
@@ -54,6 +56,7 @@ export class VoiceChannel {
 
     connection.ontrack = (e) => {
       audioEl.srcObject = e.streams[0];
+      audioEl.muted = this.listeningMuted;
     };
 
     connection.onicecandidate = (e) => {
@@ -136,5 +139,21 @@ export class VoiceChannel {
       supabase.removeChannel(this.channel);
       this.channel = null;
     }
+  }
+
+  /** كتم/تشغيل صوتك أنت (الميكروفون الصادر) */
+  setMicMuted(muted: boolean) {
+    this.micMuted = muted;
+    this.localStream?.getAudioTracks().forEach((t) => {
+      t.enabled = !muted;
+    });
+  }
+
+  /** كتم/تشغيل سماع الآخرين (الصوت الوارد) */
+  setListeningMuted(muted: boolean) {
+    this.listeningMuted = muted;
+    this.peers.forEach((p) => {
+      p.audioEl.muted = muted;
+    });
   }
 }
