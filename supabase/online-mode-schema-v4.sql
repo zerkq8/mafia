@@ -40,3 +40,33 @@ end;
 $$;
 
 grant execute on function list_open_online_rooms() to authenticated;
+
+-- =========================================================
+-- إصلاح غير موجود بالملف الأصلي: دردشة الأونلاين معطّلة فعليًا
+-- =========================================================
+-- اكتشفته أثناء اختبار دردشة غرفة الانتظار (دفعة 4): سياسة الإدراج
+-- الأصلية على online_chat_messages (من دفعة 2) تفشل دايمًا —
+-- الاستعلام الفرعي المرتبط (correlated subquery) داخل WITH CHECK
+-- يستعلم عن online_players، وهذا الجدول نفسه محمي بـ RLS، والتحقق
+-- المتداخل ما ينجح. النتيجة: كل رسالة (بغرفة الانتظار أو صفحة اللعب)
+-- كانت تُرفض بصمت (42501) بدون أي خطأ ظاهر بالواجهة، من أول دفعة 2.
+-- الحل: دالة security definer تتجاوز هذا التعارض، بنفس نمط
+-- my_online_room_ids() المستخدم أصلاً بهذا المشروع.
+create or replace function is_my_online_player(p_player_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from online_players
+    where id = p_player_id and auth_id = auth.uid()
+  );
+$$;
+
+grant execute on function is_my_online_player(uuid) to authenticated;
+
+drop policy if exists online_chat_insert on online_chat_messages;
+create policy online_chat_insert on online_chat_messages
+  for insert with check (is_my_online_player(sender_player_id));
