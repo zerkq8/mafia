@@ -70,3 +70,31 @@ grant execute on function is_my_online_player(uuid) to authenticated;
 drop policy if exists online_chat_insert on online_chat_messages;
 create policy online_chat_insert on online_chat_messages
   for insert with check (is_my_online_player(sender_player_id));
+
+-- =========================================================
+-- إصلاح ثانٍ (اكتُشف بعد الأول): سياسة القراءة معطّلة أيضًا
+-- =========================================================
+-- بعد إصلاح الإدراج، تبيّن (بالاختبار المباشر: إدراج بنجاح ثم قراءة
+-- فورية بنفس الغرفة ترجع فاضية) إن سياسة online_chat_select الأصلية
+-- (room_id in (select my_online_room_ids())) ما تشتغل صح جوّا سياق
+-- RLS لجدول ثاني، رغم إن استدعاء my_online_room_ids() مباشرة يرجّع
+-- النتيجة الصحيحة. نفس فئة المشكلة بالضبط، حل مشابه: دالة
+-- security definer تفحص العضوية مباشرة بدل الاعتماد على IN (subquery).
+create or replace function is_online_room_member(p_room_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1 from online_players
+    where room_id = p_room_id and auth_id = auth.uid()
+  );
+$$;
+
+grant execute on function is_online_room_member(uuid) to authenticated;
+
+drop policy if exists online_chat_select on online_chat_messages;
+create policy online_chat_select on online_chat_messages
+  for select using (is_online_room_member(room_id));
