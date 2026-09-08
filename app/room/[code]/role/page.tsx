@@ -329,7 +329,7 @@ export default function RoleRevealPage() {
       onTouchEnd={onUp}
     >
       <div className="px-5 pt-8 pb-3 text-center">
-        <div className="text-[10px] tracking-[0.3em] text-muted mb-1">
+        <div className="text-[11px] tracking-[0.3em] text-muted mb-1">
           تم توزيع دورك
         </div>
         <div className="font-display text-2xl text-cream">بطاقتك</div>

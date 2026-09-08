@@ -275,9 +275,9 @@ export default function DiscussionPage() {
   const remaining = Math.max(0, Math.ceil(room.speaking_duration_seconds - elapsed));
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
+    <main className="min-h-screen px-5 py-4 max-w-md mx-auto flex flex-col">
       <div className="text-center mb-4">
-        <div className="text-[10px] tracking-[0.3em] text-muted mb-1">
+        <div className="text-[11px] tracking-[0.3em] text-muted mb-1">
           🎙️ إدارة النقاش
         </div>
         <div className="font-display text-2xl text-gold">دور الكلام</div>
@@ -307,7 +307,7 @@ export default function DiscussionPage() {
         )}
         {running && (
           <>
-            <p className="text-[10px] tracking-[0.2em] mb-2" style={{ color: "#8A93A6" }}>
+            <p className="text-[11px] tracking-[0.2em] mb-2" style={{ color: "#8A93A6" }}>
               المتكلم الحالي
             </p>
             <p className="text-2xl font-bold mb-3" style={{ color: "#EDEAE0" }}>

@@ -38,7 +38,7 @@ export default function OnlineJoinPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-10">
+    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-4">
       <h1 className="font-display text-4xl text-gold mb-2">لعبة المافيا</h1>
       <p className="text-xs text-muted mb-6">دعوة لغرفة أونلاين</p>
 
@@ -69,7 +69,7 @@ export default function OnlineJoinPage() {
         >
           {loading ? "جارٍ الدخول..." : "دخول الغرفة"}
         </button>
-        <p className="text-[10px] text-center" style={{ color: "#8B7F68" }}>
+        <p className="text-[11px] text-center" style={{ color: "#8B7F68" }}>
           لو الغرفة اكتملت أو بدأت اللعبة، بتنضم كمستمع تلقائيًا.
         </p>
       </div>

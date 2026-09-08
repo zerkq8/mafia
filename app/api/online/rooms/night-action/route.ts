@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient, getAuthIdFromRequest } from "@/lib/supabase/admin";
 import { secureShuffle } from "@/lib/secureShuffle";
+import { resolveMafiaPhase, resolveDetectivePhase, resolveDoctorPhase } from "@/lib/onlineNightResolver";
 
 type ActionType = "mafia_kill" | "doctor_protect" | "detective_investigate";
 
@@ -40,7 +41,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "الغرفة غير موجودة." }, { status: 404 });
     }
 
-    if (room.status !== PHASE_FOR_ACTION[actionType]) {
+    // الشرطي يقدر يحقق بمرحلتين: detective_phase العادية، أو detective_intro (الجولة الأولى بس)
+    const validPhase =
+      actionType === "detective_investigate"
+        ? room.status === "detective_phase" || room.status === "detective_intro"
+        : room.status === PHASE_FOR_ACTION[actionType];
+
+    if (!validPhase) {
       return NextResponse.json(
         { error: "مو وقت هذا الفعل الآن." },
         { status: 409 }
@@ -108,97 +115,35 @@ export async function POST(req: Request) {
         .order("created_at", { ascending: true });
 
       if ((submissions?.length || 0) >= (aliveMafia?.length || 0)) {
-        // نحسم الهدف بالأغلبية، ولو تعادل ناخذ أول اختيار
-        const counts = new Map<string, number>();
-        (submissions || []).forEach((s) => {
-          counts.set(s.target_player_id, (counts.get(s.target_player_id) || 0) + 1);
-        });
-        let bestTarget = submissions![0].target_player_id;
-        let bestCount = 0;
-        counts.forEach((c, id) => {
-          if (c > bestCount) {
-            bestCount = c;
-            bestTarget = id;
-          }
-        });
-
-        await admin
-          .from("online_rooms")
-          .update({ status: "detective_phase", pending_mafia_target_id: bestTarget })
-          .eq("id", room.id);
+        await resolveMafiaPhase(admin, room);
       }
     } else if (actionType === "detective_investigate") {
-      await admin
-        .from("online_rooms")
-        .update({ status: "doctor_phase" })
-        .eq("id", room.id);
-    } else if (actionType === "doctor_protect") {
-      const { data: freshRoom } = await admin
-        .from("online_rooms")
-        .select("pending_mafia_target_id")
-        .eq("id", room.id)
-        .single();
+      if (room.status === "detective_intro") {
+        // الجولة الأولى: بعد التحقيق السريع، مباشرة لدور الكلام (بدون طبيب ولا قتل)
+        const { data: aliveNow } = await admin
+          .from("online_players")
+          .select("id")
+          .eq("room_id", room.id)
+          .eq("is_alive", true)
+          .eq("is_spectator", false);
 
-      const mafiaTarget = freshRoom?.pending_mafia_target_id || null;
-      const protectedId = targetPlayerId;
-      const died = mafiaTarget && mafiaTarget !== protectedId ? mafiaTarget : null;
+        const order = secureShuffle((aliveNow || []).map((p) => p.id));
 
-      if (died) {
-        await admin.from("online_players").update({ is_alive: false }).eq("id", died);
-      }
-
-      // فحص شرط الفوز — يجب أن يتحقق فورًا بعد القتل الليلي نفسه، مو بس بعد التصويت النهاري
-      const { data: aliveAfter } = await admin
-        .from("online_players")
-        .select("id")
-        .eq("room_id", room.id)
-        .eq("is_alive", true)
-        .eq("is_spectator", false);
-
-      const { data: mafiaAssignments } = await admin
-        .from("online_role_assignments")
-        .select("player_id")
-        .eq("room_id", room.id)
-        .eq("role", "mafia");
-
-      const mafiaIds = new Set((mafiaAssignments || []).map((m) => m.player_id));
-      const aliveAfterIds = (aliveAfter || []).map((p) => p.id);
-      const aliveMafiaCount = aliveAfterIds.filter((id) => mafiaIds.has(id)).length;
-      const aliveTotal = aliveAfterIds.length;
-
-      let winner: string | null = null;
-      if (aliveMafiaCount === 0) {
-        winner = "civilians";
-      } else if (aliveMafiaCount === 1 && aliveTotal === 2) {
-        winner = "mafia";
-      }
-
-      if (winner) {
         await admin
           .from("online_rooms")
           .update({
-            status: "game_over",
-            winner,
-            last_death_player_id: died,
+            status: "speaking_turn",
+            speaking_order: order,
+            speaking_index: 0,
+            current_speaker_id: order[0] || null,
+            speaking_started_at: new Date().toISOString(),
           })
           .eq("id", room.id);
-        return NextResponse.json({ success: true, winner });
+      } else {
+        await resolveDetectivePhase(admin, room);
       }
-
-      // لا فوز بعد — ابنِ دور كلام كامل لكل الأحياء (غير المستمعين) بالترتيب
-      const order = secureShuffle(aliveAfterIds);
-
-      await admin
-        .from("online_rooms")
-        .update({
-          status: "speaking_turn",
-          last_death_player_id: died,
-          speaking_order: order,
-          speaking_index: 0,
-          current_speaker_id: order[0] || null,
-          speaking_started_at: new Date().toISOString(),
-        })
-        .eq("id", room.id);
+    } else if (actionType === "doctor_protect") {
+      await resolveDoctorPhase(admin, room, targetPlayerId);
     }
 
     return NextResponse.json({ success: true });

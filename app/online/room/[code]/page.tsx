@@ -331,9 +331,10 @@ export default function OnlineWaitingRoomPage() {
   const slots = Array.from({ length: 8 }, (_, i) => activePlayers[i] || null);
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
+    <main className="min-h-screen px-4 py-4 max-w-md mx-auto flex flex-col text-sm">
+      <div className="fixed inset-0 -z-10" style={{ background: "#F7ECD9" }} />
       {/* شريط علوي: رجوع + مشاركة */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-2">
         <button
           onClick={leaveRoom}
           disabled={leaving}
@@ -351,23 +352,83 @@ export default function OnlineWaitingRoomPage() {
         </button>
       </div>
 
-      <div className="text-center mb-2">
-        {isCreator && <p className="text-[10px] text-gold mb-1">👑 أنت منشئ الغرفة</p>}
-        <p dir="ltr" className="text-xs text-muted tracking-widest">{code}</p>
-      </div>
+      {/* تخطيط طاولة: 4 يمين + وسط فاضي (كود الغرفة/الحالة) + 4 يسار */}
+      <div className="flex items-center justify-center gap-3 mb-3">
+        {["right", "left"].map((side, colIdx) => (
+          <div key={side} className="flex flex-col gap-1.5" style={{ order: colIdx === 0 ? 1 : 3 }}>
+            {slots.slice(colIdx * 4, colIdx * 4 + 4).map((p, idxInSide) => {
+              const i = colIdx * 4 + idxInSide;
+              return (
+                <div
+                  key={i}
+                  onClick={() => {
+                    if (isCreator && p && p.auth_id !== myAuthId) {
+                      setManagingPlayer(p);
+                    }
+                  }}
+                  className="flex flex-col items-center gap-0.5"
+                  style={{ width: 56, cursor: isCreator && p && p.auth_id !== myAuthId ? "pointer" : "default" }}
+                >
+                  {p && (
+                    <span
+                      className="text-[11px] leading-tight text-center break-all max-w-full px-0.5"
+                      style={{ color: p.auth_id === myAuthId ? "#C9A227" : "#2B2117" }}
+                    >
+                      {p.name}
+                    </span>
+                  )}
+                  <div
+                    className="relative rounded-lg flex items-center justify-center overflow-hidden"
+                    style={{
+                      width: 56,
+                      height: 56,
+                      background: p ? "#FFFFFF" : "transparent",
+                      border: `1px solid ${p?.auth_id === myAuthId ? "#C9A227" : p ? "#DED4B8" : "#EEE5D0"}`,
+                    }}
+                  >
+                    <span
+                      className="absolute top-0.5 right-0.5 text-[10px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center"
+                      style={{ background: "#F0E9D6", color: "#8B7F68" }}
+                    >
+                      {i + 1}
+                    </span>
+                    {p ? (
+                      <img
+                        src={p.is_ready ? "/avatars/default-ready.png" : "/avatars/default-gray.png"}
+                        alt=""
+                        className="w-full h-full object-contain p-1"
+                        style={{ transition: "opacity 0.3s ease" }}
+                      />
+                    ) : (
+                      <span className="text-border text-sm">·</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ))}
 
-      <div dir="ltr" className="text-center text-3xl font-display text-gold my-2">
-        {activePlayers.length}<span className="text-muted text-xl mx-1">/</span>8
+        {/* الوسط الفاضي — كود الغرفة وحالة الاستعداد */}
+        <div
+          className="flex flex-col items-center justify-center text-center"
+          style={{ order: 2, width: 110, minHeight: 240 }}
+        >
+          {isCreator && <p className="text-[10px] text-gold mb-1">👑 منشئ الغرفة</p>}
+          <p dir="ltr" className="text-[11px] text-muted tracking-widest mb-3">{code}</p>
+          <div dir="ltr" className="text-2xl font-display text-gold mb-1">
+            {activePlayers.length}<span className="text-muted text-sm mx-0.5">/</span>8
+          </div>
+          <p className="text-[10px] text-muted mb-2">جاهزون</p>
+          {spectators.length > 0 && (
+            <p className="text-[10px]" style={{ color: "#8B7F68" }}>👁️ {spectators.length} مستمع</p>
+          )}
+        </div>
       </div>
-      {spectators.length > 0 && (
-        <p className="text-center text-xs mb-2" style={{ color: "#8B7F68" }}>
-          👁️ {spectators.length} مستمع
-        </p>
-      )}
 
       {actionError && <p className="text-mafia text-xs text-center mb-3">{actionError}</p>}
       {isCreator && (
-        <p className="text-[10px] text-muted text-center mb-3">
+        <p className="text-[11px] text-muted text-center mb-3">
           اضغط على أي لاعب لطرده أو تحويله لمستمع
         </p>
       )}
@@ -398,7 +459,7 @@ export default function OnlineWaitingRoomPage() {
           </div>
           <button
             onClick={() => setManagingPlayer(null)}
-            className="text-[10px] text-center"
+            className="text-[11px] text-center"
             style={{ color: "#5A6270" }}
           >
             إلغاء
@@ -406,63 +467,14 @@ export default function OnlineWaitingRoomPage() {
         </div>
       )}
 
-      {/* شبكة اللاعبين — نفس تصميم الوضع المحلي: اسم فوق، صورة رمادية/خضراء داخل المربع */}
-      <div className="grid grid-cols-4 gap-2 mb-6">
-        {slots.map((p, i) => (
-          <div
-            key={i}
-            onClick={() => {
-              if (isCreator && p && p.auth_id !== myAuthId) {
-                setManagingPlayer(p);
-              }
-            }}
-            className="flex flex-col items-center gap-1"
-            style={{ cursor: isCreator && p && p.auth_id !== myAuthId ? "pointer" : "default" }}
-          >
-            {p && (
-              <span
-                className="text-[9px] leading-tight text-center break-all max-w-full px-0.5"
-                style={{ color: p.auth_id === myAuthId ? "#C9A227" : "#2B2117" }}
-              >
-                {p.name}
-              </span>
-            )}
-            <div
-              className="relative aspect-square w-full rounded-lg flex items-center justify-center overflow-hidden"
-              style={{
-                background: p ? "#FFFFFF" : "transparent",
-                border: `1px solid ${p?.auth_id === myAuthId ? "#C9A227" : p ? "#DED4B8" : "#EEE5D0"}`,
-              }}
-            >
-              <span
-                className="absolute top-1 right-1 text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
-                style={{ background: "#F0E9D6", color: "#8B7F68" }}
-              >
-                {i + 1}
-              </span>
-              {p ? (
-                <img
-                  src={p.is_ready ? "/avatars/default-ready.png" : "/avatars/default-gray.png"}
-                  alt=""
-                  className="w-full h-full object-contain p-1.5"
-                  style={{ transition: "opacity 0.3s ease" }}
-                />
-              ) : (
-                <span className="text-border text-lg">·</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
       {spectators.length > 0 && (
-        <div className="mb-6">
-          <p className="text-[10px] text-muted mb-2 text-center">مستمعون ({spectators.length})</p>
-          <div className="flex flex-wrap gap-1.5 justify-center">
+        <div className="mb-3">
+          <p className="text-[11px] text-muted mb-1 text-center">مستمعون ({spectators.length})</p>
+          <div className="flex flex-wrap gap-1 justify-center">
             {spectators.map((s) => (
               <span
                 key={s.id}
-                className="text-[10px] px-2 py-1 rounded-full"
+                className="text-[11px] px-2 py-0.5 rounded-full"
                 style={{ background: "#141B26", color: "#8A93A6", border: "1px solid #2A3342" }}
               >
                 👁️ {s.name}
@@ -487,7 +499,7 @@ export default function OnlineWaitingRoomPage() {
           </button>
         </div>
       )}
-      <div className="flex items-center justify-center gap-2 mb-4">
+      <div className="flex items-center justify-center gap-2 mb-2">
         {!voiceJoined ? (
           <button
             onClick={joinLobbyVoice}
@@ -581,7 +593,7 @@ export default function OnlineWaitingRoomPage() {
       )}
 
       {/* الدردشة */}
-      <div className="mt-4">
+      <div className="mt-2">
         <button
           onClick={() => setShowChat((v) => !v)}
           className="w-full text-xs text-center py-2 rounded-full"

@@ -86,7 +86,7 @@ export default function OnlineHomePage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-10">
+    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-4">
       <h1 className="font-display text-4xl text-gold mb-1">لعبة المافيا</h1>
       <p className="text-xs text-muted mb-6">الوضع الأونلاين — تجريبي</p>
 
@@ -193,7 +193,7 @@ export default function OnlineHomePage() {
         </div>
       )}
 
-      <p className="text-[10px] text-muted mt-8 max-w-xs text-center">
+      <p className="text-[11px] text-muted mt-8 max-w-xs text-center">
         8 لاعبين بالضبط لكل غرفة — 2 مافيا، 1 طبيب، 1 شرطي، 4 شعب. اللعبة تدار تلقائيًا بدون حكم.
       </p>
     </main>

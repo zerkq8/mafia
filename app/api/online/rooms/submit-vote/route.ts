@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdminClient, getAuthIdFromRequest } from "@/lib/supabase/admin";
+import { resolveDayVote } from "@/lib/onlineVoteResolver";
 
 export async function POST(req: Request) {
   try {
@@ -32,10 +33,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "أنت مو عضو بهذي الغرفة." }, { status: 403 });
     }
     if (!voter.is_alive || voter.is_spectator) {
-      return NextResponse.json(
-        { error: "بس اللاعبون الأحياء يصوتون." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "بس اللاعبون الأحياء يصوتون." }, { status: 403 });
     }
 
     const { error: upsertError } = await admin.from("online_day_votes").upsert(
@@ -49,7 +47,7 @@ export async function POST(req: Request) {
     );
     if (upsertError) throw upsertError;
 
-    // تحقق: هل صوّت كل الأحياء (غير المستمعين)؟
+    // تحقق: هل صوّت كل الأحياء (غير المستمعين)؟ لو نعم، احسم فورًا بدون انتظار الـ10 ثواني
     const { data: aliveVoters } = await admin
       .from("online_players")
       .select("id")
@@ -59,7 +57,7 @@ export async function POST(req: Request) {
 
     const { data: votes } = await admin
       .from("online_day_votes")
-      .select("voter_player_id, target_player_id")
+      .select("voter_player_id")
       .eq("room_id", room.id)
       .eq("round_number", room.round_number);
 
@@ -71,77 +69,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, resolved: false });
     }
 
-    // احسم النتيجة
-    const counts = new Map<string, number>();
-    (votes || []).forEach((v) => {
-      counts.set(v.target_player_id, (counts.get(v.target_player_id) || 0) + 1);
-    });
-    let maxCount = 0;
-    let maxTargets: string[] = [];
-    counts.forEach((c, id) => {
-      if (c > maxCount) {
-        maxCount = c;
-        maxTargets = [id];
-      } else if (c === maxCount) {
-        maxTargets.push(id);
-      }
-    });
-
-    const votedOut = maxTargets.length === 1 ? maxTargets[0] : null;
-    if (votedOut) {
-      await admin.from("online_players").update({ is_alive: false }).eq("id", votedOut);
-    }
-
-    // فحص شرط الفوز
-    const { data: aliveAfter } = await admin
-      .from("online_players")
-      .select("id")
-      .eq("room_id", room.id)
-      .eq("is_alive", true)
-      .eq("is_spectator", false);
-
-    const { data: mafiaAssignments } = await admin
-      .from("online_role_assignments")
-      .select("player_id")
-      .eq("room_id", room.id)
-      .eq("role", "mafia");
-
-    const mafiaIds = new Set((mafiaAssignments || []).map((m) => m.player_id));
-    const aliveAfterIds = (aliveAfter || []).map((p) => p.id);
-    const aliveMafiaCount = aliveAfterIds.filter((id) => mafiaIds.has(id)).length;
-    const aliveTotal = aliveAfterIds.length;
-
-    let winner: string | null = null;
-    if (aliveMafiaCount === 0) {
-      winner = "civilians";
-    } else if (aliveMafiaCount === 1 && aliveTotal === 2) {
-      winner = "mafia";
-    }
-
-    if (winner) {
-      await admin
-        .from("online_rooms")
-        .update({
-          status: "game_over",
-          winner,
-          last_voted_out_player_id: votedOut,
-        })
-        .eq("id", room.id);
-    } else {
-      await admin
-        .from("online_rooms")
-        .update({
-          status: "mafia_recognition",
-          round_number: room.round_number + 1,
-          pending_mafia_target_id: null,
-          last_death_player_id: votedOut,
-          last_voted_out_player_id: votedOut,
-          mafia_recognition_started_at: new Date().toISOString(),
-        })
-        .eq("id", room.id);
-    }
-
-    return NextResponse.json({ success: true, resolved: true, votedOut, winner });
+    const result = await resolveDayVote(admin, room);
+    return NextResponse.json({ success: true, resolved: true, ...result });
   } catch (err: any) {
     return NextResponse.json(
       { error: err.message || "حدث خطأ غير متوقع." },

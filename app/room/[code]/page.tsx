@@ -332,7 +332,7 @@ export default function LobbyPage() {
   }
 
   return (
-    <main className="min-h-screen relative px-5 py-8 max-w-md mx-auto flex flex-col">
+    <main className="min-h-screen relative px-5 py-4 max-w-md mx-auto flex flex-col">
       <div
         className="fixed inset-0 -z-10"
         style={{
@@ -380,7 +380,7 @@ export default function LobbyPage() {
 
       {/* العدّاد بالنص فوق — dir=ltr لتفادي مشكلة انعكاس الأرقام بالـ RTL */}
       <div className="text-center mb-6">
-        <div className="text-[10px] tracking-[0.3em] text-muted mb-1">
+        <div className="text-[11px] tracking-[0.3em] text-muted mb-1">
           عدد اللاعبين
         </div>
         <div
@@ -392,7 +392,7 @@ export default function LobbyPage() {
           {total}
         </div>
         {isHost && (
-          <p className="text-[10px] text-muted mt-2">
+          <p className="text-[11px] text-muted mt-2">
             اضغط على أي لاعب لطرده من الغرفة
           </p>
         )}
@@ -414,7 +414,7 @@ export default function LobbyPage() {
             >
               {filled && (
                 <span
-                  className="text-[9px] leading-tight text-center break-all max-w-full px-0.5"
+                  className="text-[11px] leading-tight text-center break-all max-w-full px-0.5"
                   style={{ color: isMe ? "#B6963F" : "#2B2117" }}
                 >
                   {p!.name}

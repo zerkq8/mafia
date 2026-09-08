@@ -3,7 +3,7 @@ import { getSupabaseAdminClient, getAuthIdFromRequest } from "@/lib/supabase/adm
 
 export async function POST(req: Request) {
   try {
-    await getAuthIdFromRequest(req);
+    const authId = await getAuthIdFromRequest(req);
     const { roomCode } = (await req.json()) as { roomCode: string };
     const admin = getSupabaseAdminClient();
 
@@ -15,31 +15,44 @@ export async function POST(req: Request) {
     if (error || !room) {
       return NextResponse.json({ error: "الغرفة غير موجودة." }, { status: 404 });
     }
-    if (room.status !== "mafia_recognition") {
-      return NextResponse.json({ success: true });
+    if (room.status !== "speaking_turn") {
+      return NextResponse.json({ error: "مو وقت الكلام الآن." }, { status: 409 });
     }
 
-    const startedAt = new Date(room.mafia_recognition_started_at).getTime();
-    const elapsedSeconds = (Date.now() - startedAt) / 1000;
-    if (elapsedSeconds < 14) {
-      return NextResponse.json({ error: "لسا ما خلصت 15 ثانية." }, { status: 409 });
+    const { data: me } = await admin
+      .from("online_players")
+      .select("id")
+      .eq("room_id", room.id)
+      .eq("auth_id", authId)
+      .maybeSingle();
+
+    if (!me || me.id !== room.current_speaker_id) {
+      return NextResponse.json(
+        { error: "بس المتكلم الحالي يقدر يتخطى دوره." },
+        { status: 403 }
+      );
     }
 
-    if (room.round_number === 1) {
-      // الجولة الأولى: بدون قتل — بس تحقيق سريع من الشرطي الحقيقي (7 ثواني) قبل دور الكلام
+    const order: string[] = room.speaking_order || [];
+    const nextIndex = (room.speaking_index ?? -1) + 1;
+
+    if (nextIndex < order.length) {
       await admin
         .from("online_rooms")
         .update({
-          status: "detective_intro",
-          last_death_player_id: null,
-          detective_intro_started_at: new Date().toISOString(),
+          speaking_index: nextIndex,
+          current_speaker_id: order[nextIndex],
+          speaking_started_at: new Date().toISOString(),
         })
         .eq("id", room.id);
     } else {
-      // من الجولة الثانية فصاعدًا: يبدأ القتل الفعلي (مع مؤقت 30 ثانية يمنع التجمّد)
       await admin
         .from("online_rooms")
-        .update({ status: "mafia_phase", mafia_phase_started_at: new Date().toISOString() })
+        .update({
+          status: "day_vote",
+          day_vote_started_at: new Date().toISOString(),
+          current_speaker_id: null,
+        })
         .eq("id", room.id);
     }
 

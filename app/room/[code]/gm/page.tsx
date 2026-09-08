@@ -226,9 +226,9 @@ export default function GmDashboardPage() {
   const aliveCount = players.filter((p) => p.is_alive).length;
 
   return (
-    <main className="min-h-screen px-5 py-8 max-w-md mx-auto">
+    <main className="min-h-screen px-5 py-4 max-w-md mx-auto">
       <div className="text-center mb-6">
-        <div className="text-[10px] tracking-[0.3em] text-muted mb-1">
+        <div className="text-[11px] tracking-[0.3em] text-muted mb-1">
           👑 لوحة الحكم
         </div>
         <div className="font-display text-2xl text-gold mb-2">
@@ -284,12 +284,12 @@ export default function GmDashboardPage() {
               )}
               <span className="flex flex-col flex-1">
                 <span className="text-sm text-cream">{p.name}</span>
-                <span className="text-[10px] text-muted">
+                <span className="text-[11px] text-muted">
                   {def ? def.nameAr : "بدون دور"}
                 </span>
               </span>
               <span
-                className="text-[10px] px-2 py-1 rounded-full"
+                className="text-[11px] px-2 py-1 rounded-full"
                 style={{
                   background:
                     p.team === "mafia" ? "#B2564C33" : "#5C8E7B33",
@@ -305,7 +305,7 @@ export default function GmDashboardPage() {
         })}
       </div>
 
-      <div className="text-[10px] tracking-[0.2em] text-muted mt-8 mb-2 text-center">
+      <div className="text-[11px] tracking-[0.2em] text-muted mt-8 mb-2 text-center">
         ⚙️ أدوات الحكم
       </div>
       <div className="flex flex-col gap-1.5">
