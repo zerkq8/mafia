@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ensureAnonymousSession, getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { VoiceChannel } from "@/lib/voiceChannel";
 
 interface RoomRow {
   id: string;
@@ -19,6 +20,13 @@ interface PlayerRow {
   is_spectator: boolean;
 }
 
+interface ChatMessage {
+  id: string;
+  sender_name: string;
+  message: string;
+  created_at: string;
+}
+
 export default function OnlineWaitingRoomPage() {
   const params = useParams();
   const router = useRouter();
@@ -32,6 +40,19 @@ export default function OnlineWaitingRoomPage() {
   const [error, setError] = useState("");
   const [managingPlayer, setManagingPlayer] = useState<PlayerRow | null>(null);
   const [actionError, setActionError] = useState("");
+  const [leaving, setLeaving] = useState(false);
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [showChat, setShowChat] = useState(false);
+
+  // --- صوت غرفة الانتظار (جماعي، اختياري، شبكة كاملة بين كل الحاضرين) ---
+  const voiceRef = useRef<VoiceChannel | null>(null);
+  const connectedPeersRef = useRef<Set<string>>(new Set());
+  const [voiceJoined, setVoiceJoined] = useState(false);
+  const [voiceError, setVoiceError] = useState("");
+  const [micMuted, setMicMuted] = useState(false);
+  const [listeningMuted, setListeningMuted] = useState(false);
 
   const me = players.find((p) => p.auth_id === myAuthId) || null;
   const isCreator = room?.created_by_auth_id === myAuthId;
@@ -73,6 +94,14 @@ export default function OnlineWaitingRoomPage() {
         (p) => p.auth_id === session?.user.id
       );
       if (mine) setMyPlayerId(mine.id);
+
+      const { data: chatData } = await supabase
+        .from("online_chat_messages")
+        .select("id, sender_name, message, created_at")
+        .eq("room_id", roomData.id)
+        .order("created_at", { ascending: true })
+        .limit(100);
+      setChatMessages((chatData as ChatMessage[]) || []);
     } catch (e: any) {
       setError(e.message || "حدث خطأ غير متوقع.");
     } finally {
@@ -100,8 +129,16 @@ export default function OnlineWaitingRoomPage() {
         (payload) => {
           const newStatus = (payload.new as any)?.status;
           if (newStatus && newStatus !== "waiting") {
+            voiceRef.current?.stop();
             router.push(`/online/room/${code}/play`);
           }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "online_chat_messages", filter: `room_id=eq.${room.id}` },
+        (payload) => {
+          setChatMessages((prev) => [...prev, payload.new as ChatMessage]);
         }
       )
       .subscribe();
@@ -150,6 +187,25 @@ export default function OnlineWaitingRoomPage() {
     }
   }
 
+  async function joinAsPlayer() {
+    setActionError("");
+    try {
+      await callApi("/api/online/rooms/join-as-player", { roomCode: code });
+    } catch (e: any) {
+      setActionError(e.message);
+    }
+  }
+
+  async function becomeSpectator() {
+    if (!window.confirm("متأكد تبي تنزل مستمع؟ بتخسر مقعدك كلاعب.")) return;
+    setActionError("");
+    try {
+      await callApi("/api/online/rooms/become-spectator", { roomCode: code });
+    } catch (e: any) {
+      setActionError(e.message);
+    }
+  }
+
   async function managePlayer(action: "kick" | "spectator") {
     if (!managingPlayer) return;
     setActionError("");
@@ -164,6 +220,92 @@ export default function OnlineWaitingRoomPage() {
       setActionError(e.message);
     }
   }
+
+  async function leaveRoom() {
+    if (!window.confirm("متأكد تبي تطلع من الغرفة؟")) return;
+    leaveLobbyVoice();
+    setLeaving(true);
+    setActionError("");
+    try {
+      await callApi("/api/online/rooms/leave", { roomCode: code });
+      router.push("/online");
+    } catch (e: any) {
+      setActionError(e.message);
+      setLeaving(false);
+    }
+  }
+
+  async function shareRoom() {
+    const url = `${window.location.origin}/online/join/${code}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "لعبة المافيا — أونلاين", text: "انضم لغرفتي", url });
+      } catch {
+        // ألغى المشاركة
+      }
+    } else {
+      await navigator.clipboard.writeText(url);
+      window.alert("تم نسخ رابط الدعوة، أرسله للاعبين.");
+    }
+  }
+
+  async function sendChatMessage() {
+    const text = chatInput.trim();
+    if (!text || !room || !myPlayerId) return;
+    setChatInput("");
+    const supabase = getSupabaseBrowserClient();
+    await supabase.from("online_chat_messages").insert({
+      room_id: room.id,
+      sender_player_id: myPlayerId,
+      sender_name: me?.name || "لاعب",
+      message: text.slice(0, 300),
+    });
+  }
+
+  // ---- صوت غرفة الانتظار: شبكة كاملة (Mesh) بين كل الحاضرين ----
+  async function joinLobbyVoice() {
+    if (!room || !myPlayerId) return;
+    setVoiceError("");
+    const voice = new VoiceChannel(room.id, myPlayerId, setVoiceError);
+    voiceRef.current = voice;
+    await voice.start(!me?.is_spectator); // المستمعون يستمعون بس، ما يتكلمون
+    setVoiceJoined(true);
+
+    // اتصل بكل الحاضرين اللي معرّفهم أكبر من معرّفي (تفادي اتصال مزدوج بين نفس الاثنين)
+    players.forEach((p) => {
+      if (p.id !== myPlayerId && p.id > myPlayerId && !connectedPeersRef.current.has(p.id)) {
+        connectedPeersRef.current.add(p.id);
+        voice.callPeer(p.id);
+      }
+    });
+  }
+
+  function leaveLobbyVoice() {
+    voiceRef.current?.stop();
+    voiceRef.current = null;
+    connectedPeersRef.current.clear();
+    setVoiceJoined(false);
+    setMicMuted(false);
+    setListeningMuted(false);
+  }
+
+  // لما ينضم لاعب جديد وأنا بالفعل داخل صوت الغرفة، اتصل فيه لو معرّفه أكبر
+  useEffect(() => {
+    if (!voiceJoined || !voiceRef.current || !myPlayerId) return;
+    players.forEach((p) => {
+      if (p.id !== myPlayerId && p.id > myPlayerId && !connectedPeersRef.current.has(p.id)) {
+        connectedPeersRef.current.add(p.id);
+        voiceRef.current!.callPeer(p.id);
+      }
+    });
+  }, [players, voiceJoined, myPlayerId]);
+
+  // تنظيف عند مغادرة الصفحة
+  useEffect(() => {
+    return () => {
+      voiceRef.current?.stop();
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -191,15 +333,38 @@ export default function OnlineWaitingRoomPage() {
 
   return (
     <main className="min-h-screen px-5 py-8 max-w-md mx-auto flex flex-col">
-      <div className="text-center mb-2">
-        <p className="text-xs text-muted mb-1">رمز الغرفة</p>
-        <p dir="ltr" className="font-display text-2xl text-gold tracking-widest">{code}</p>
-        {isCreator && <p className="text-[10px] text-gold mt-1">👑 أنت منشئ الغرفة</p>}
+      {/* شريط علوي: رجوع + مشاركة */}
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={leaveRoom}
+          disabled={leaving}
+          className="text-xs px-3 py-2 rounded-full disabled:opacity-50"
+          style={{ border: "1px solid #DED4B8", color: "#8B7F68" }}
+        >
+          ← رجوع
+        </button>
+        <button
+          onClick={shareRoom}
+          className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-full"
+          style={{ border: "1px solid #C9A227", color: "#C9A227" }}
+        >
+          🔗 مشاركة رابط الدعوة
+        </button>
       </div>
 
-      <div dir="ltr" className="text-center text-3xl font-display text-gold my-4">
+      <div className="text-center mb-2">
+        {isCreator && <p className="text-[10px] text-gold mb-1">👑 أنت منشئ الغرفة</p>}
+        <p dir="ltr" className="text-xs text-muted tracking-widest">{code}</p>
+      </div>
+
+      <div dir="ltr" className="text-center text-3xl font-display text-gold my-2">
         {activePlayers.length}<span className="text-muted text-xl mx-1">/</span>8
       </div>
+      {spectators.length > 0 && (
+        <p className="text-center text-xs mb-2" style={{ color: "#8B7F68" }}>
+          👁️ {spectators.length} مستمع
+        </p>
+      )}
 
       {actionError && <p className="text-mafia text-xs text-center mb-3">{actionError}</p>}
       {isCreator && (
@@ -242,6 +407,7 @@ export default function OnlineWaitingRoomPage() {
         </div>
       )}
 
+      {/* شبكة اللاعبين — نفس تصميم الوضع المحلي: اسم فوق، صورة رمادية/خضراء داخل المربع */}
       <div className="grid grid-cols-4 gap-2 mb-6">
         {slots.map((p, i) => (
           <div
@@ -251,24 +417,35 @@ export default function OnlineWaitingRoomPage() {
                 setManagingPlayer(p);
               }
             }}
-            className="aspect-square rounded-lg flex flex-col items-center justify-center gap-1"
-            style={{
-              background: p ? "#141B26" : "transparent",
-              border: `1px solid ${p?.auth_id === myAuthId ? "#C9A227" : p ? "#2A3342" : "#1A2230"}`,
-              cursor: isCreator && p && p.auth_id !== myAuthId ? "pointer" : "default",
-            }}
+            className="flex flex-col items-center gap-1"
+            style={{ cursor: isCreator && p && p.auth_id !== myAuthId ? "pointer" : "default" }}
           >
-            {p ? (
-              <>
-                <span className="text-[10px] text-cream break-all text-center px-0.5">{p.name}</span>
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: p.is_ready ? "#3FA37A" : "#C0392B" }}
-                />
-              </>
-            ) : (
-              <span className="text-border text-lg">·</span>
+            {p && (
+              <span
+                className="text-[9px] leading-tight text-center break-all max-w-full px-0.5"
+                style={{ color: p.auth_id === myAuthId ? "#C9A227" : "#2B2117" }}
+              >
+                {p.name}
+              </span>
             )}
+            <div
+              className="aspect-square w-full rounded-lg flex items-center justify-center overflow-hidden"
+              style={{
+                background: p ? "#FFFFFF" : "transparent",
+                border: `1px solid ${p?.auth_id === myAuthId ? "#C9A227" : p ? "#DED4B8" : "#EEE5D0"}`,
+              }}
+            >
+              {p ? (
+                <img
+                  src={p.is_ready ? "/avatars/default-ready.png" : "/avatars/default-gray.png"}
+                  alt=""
+                  className="w-full h-full object-contain p-1.5"
+                  style={{ transition: "opacity 0.3s ease" }}
+                />
+              ) : (
+                <span className="text-border text-lg">·</span>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -292,24 +469,147 @@ export default function OnlineWaitingRoomPage() {
 
       <div className="flex-1" />
 
+      {/* صوت غرفة الانتظار — جماعي واختياري */}
+      {voiceError && <p className="text-mafia text-xs text-center mb-2">{voiceError}</p>}
+      <div className="flex items-center justify-center gap-2 mb-4">
+        {!voiceJoined ? (
+          <button
+            onClick={joinLobbyVoice}
+            className="text-xs px-5 py-2.5 rounded-full font-bold"
+            style={{ background: "#C9A22733", border: "1px solid #C9A227", color: "#C9A227" }}
+          >
+            {me?.is_spectator ? "🎧 استمع لصوت الغرفة" : "🎙️ انضم لصوت الغرفة"}
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={leaveLobbyVoice}
+              className="text-xs px-4 py-2 rounded-full font-bold"
+              style={{ background: "#8B263533", border: "1px solid #8B2635", color: "#E05A4A" }}
+            >
+              مغادرة الصوت
+            </button>
+            {!me?.is_spectator && (
+              <button
+                onClick={() => {
+                  const next = !micMuted;
+                  setMicMuted(next);
+                  voiceRef.current?.setMicMuted(next);
+                }}
+                className="text-xs px-4 py-2 rounded-full"
+                style={{
+                  background: micMuted ? "#8B263533" : "#FFFFFF",
+                  border: `1px solid ${micMuted ? "#8B2635" : "#DED4B8"}`,
+                  color: micMuted ? "#E05A4A" : "#8B7F68",
+                }}
+              >
+                {micMuted ? "🔇 مكتوم" : "🎙️ كتم"}
+              </button>
+            )}
+            <button
+              onClick={() => {
+                const next = !listeningMuted;
+                setListeningMuted(next);
+                voiceRef.current?.setListeningMuted(next);
+              }}
+              className="text-xs px-4 py-2 rounded-full"
+              style={{
+                background: listeningMuted ? "#8B263533" : "#FFFFFF",
+                border: `1px solid ${listeningMuted ? "#8B2635" : "#DED4B8"}`,
+                color: listeningMuted ? "#E05A4A" : "#8B7F68",
+              }}
+            >
+              {listeningMuted ? "🔇 مكتوم" : "🔊 السماع"}
+            </button>
+          </>
+        )}
+      </div>
+
       {me && !me.is_spectator && (
-        <button
-          onClick={toggleReady}
-          className="w-full rounded-xl py-3 text-sm font-bold"
-          style={{
-            background: me.is_ready ? "transparent" : "#C9A227",
-            border: me.is_ready ? "1px solid #2A3342" : "none",
-            color: me.is_ready ? "#8A93A6" : "#0B0E14",
-          }}
-        >
-          {me.is_ready ? "إلغاء الاستعداد" : "مستعد"}
-        </button>
+        <>
+          <button
+            onClick={toggleReady}
+            className="w-full rounded-xl py-3 text-sm font-bold"
+            style={{
+              background: me.is_ready ? "transparent" : "#C9A227",
+              border: me.is_ready ? "1px solid #DED4B8" : "none",
+              color: me.is_ready ? "#8B7F68" : "#2B2117",
+            }}
+          >
+            {me.is_ready ? "إلغاء الاستعداد" : "مستعد"}
+          </button>
+          <button
+            onClick={becomeSpectator}
+            className="w-full text-xs text-center py-2 mt-2"
+            style={{ color: "#8B7F68" }}
+          >
+            🔽 انزل كمستمع
+          </button>
+        </>
       )}
       {me && me.is_spectator && (
-        <p className="text-xs text-center" style={{ color: "#8A93A6" }}>
-          أنت مستمع — بتقدر تتفرج وتدردش لما تبدأ اللعبة
-        </p>
+        <div className="text-center mb-2">
+          <p className="text-xs mb-2" style={{ color: "#8A93A6" }}>
+            أنت مستمع — بتقدر تتفرج وتدردش وتسمع الصوت لما تبدأ اللعبة
+          </p>
+          {activePlayers.length < 8 && (
+            <button
+              onClick={joinAsPlayer}
+              className="text-xs px-4 py-2 rounded-full font-bold"
+              style={{ background: "#C9A227", color: "#2B2117" }}
+            >
+              🔼 انضم كلاعب ({8 - activePlayers.length} مقاعد فاضية)
+            </button>
+          )}
+        </div>
       )}
+
+      {/* الدردشة */}
+      <div className="mt-4">
+        <button
+          onClick={() => setShowChat((v) => !v)}
+          className="w-full text-xs text-center py-2 rounded-full"
+          style={{ border: "1px solid #DED4B8", color: "#8B7F68" }}
+        >
+          💬 {showChat ? "إخفاء الدردشة" : `الدردشة (${chatMessages.length})`}
+        </button>
+
+        {showChat && (
+          <div className="mt-3 rounded-2xl p-3" style={{ background: "#FFFFFF", border: "1px solid #DED4B8" }}>
+            <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto mb-2">
+              {chatMessages.length === 0 && (
+                <p className="text-[11px] text-center py-4" style={{ color: "#B8AD95" }}>
+                  ما فيه رسائل بعد
+                </p>
+              )}
+              {chatMessages.map((m) => (
+                <div key={m.id} className="text-xs">
+                  <span className="font-bold" style={{ color: "#C9A227" }}>{m.sender_name}: </span>
+                  <span style={{ color: "#2B2117" }}>{m.message}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendChatMessage()}
+                maxLength={300}
+                placeholder="اكتب رسالة..."
+                className="flex-1 rounded-lg px-3 py-2 text-xs bg-transparent outline-none"
+                style={{ border: "1px solid #DED4B8", color: "#2B2117" }}
+              />
+              <button
+                onClick={sendChatMessage}
+                className="text-xs px-4 rounded-lg font-bold"
+                style={{ background: "#C9A227", color: "#0B0E14" }}
+              >
+                إرسال
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </main>
   );
 }

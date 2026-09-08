@@ -75,13 +75,16 @@ export class VoiceChannel {
     return peer;
   }
 
-  /** يبدأ الاتصال — يشترك بقناة الإشارات ويهيّئ الميكروفون */
-  async start() {
-    try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      this.onError("تعذّر الوصول للميكروفون — تأكد إنك سمحت للموقع باستخدامه.");
-      return;
+  /** يبدأ الاتصال — يشترك بقناة الإشارات ويهيّئ الميكروفون
+   *  micEnabled=false يخلي الطرف "استماع فقط" (مو مسموح له يتكلم) — للمستمعين
+   */
+  async start(micEnabled: boolean = true) {
+    if (micEnabled) {
+      try {
+        this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        this.onError("تعذّر الوصول للميكروفون — تأكد إنك سمحت للموقع باستخدامه.");
+      }
     }
 
     const supabase = getSupabaseBrowserClient();
