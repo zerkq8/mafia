@@ -425,14 +425,9 @@ export default function OnlinePlayPage() {
 
       const voice = new VoiceChannel(room.id, myPlayerId, setVoiceError);
       voiceRef.current = voice;
-      await voice.start();
+      await voice.start(true); // القاعدة الافتراضية (المعرّف الأصغر يبدأ) تكفي هنا، اثنين بس
       if (cancelled) return;
       setMicOn(true);
-
-      // الطرف صاحب المعرّف الأصغر هو اللي يبدأ الاتصال (تجنّب اتصال مزدوج)
-      if (myPlayerId < otherMafia.player_id) {
-        await voice.callPeer(otherMafia.player_id);
-      }
 
       const startedAt = new Date(room.mafia_recognition_started_at!).getTime();
       timer = setInterval(async () => {
@@ -478,16 +473,10 @@ export default function OnlinePlayPage() {
     (async () => {
       const voice = new VoiceChannel(room.id, myPlayerId, setVoiceError);
       voiceRef.current = voice;
-      await voice.start(isSpeaker); // بس المتكلم الحالي يفتح ميكروفونه، الباقي استماع فقط
+      // بس المتكلم الحالي يفتح ميكروفونه ويبدأ كل المكالمات؛ البقية استماع فقط، ما يتصلون بحد
+      await voice.start(isSpeaker, isSpeaker ? () => true : () => false);
       if (cancelled) return;
       setMicOn(isSpeaker);
-
-      if (isSpeaker) {
-        const listeners = players.filter((p) => p.id !== myPlayerId);
-        for (const listener of listeners) {
-          await voice.callPeer(listener.id);
-        }
-      }
 
       const startedAt = new Date(room.speaking_started_at!).getTime();
       timer = setInterval(async () => {

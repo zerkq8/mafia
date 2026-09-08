@@ -35,6 +35,9 @@ export class VoiceChannel {
   private audioCtx: AudioContext | null = null;
   private localAnalyser?: AnalyserNode;
   private localAnalyserData?: Uint8Array;
+  private shouldCall: (otherPeerId: string) => boolean = (other) => this.myPeerId < other;
+  private helloTimer: ReturnType<typeof setInterval> | null = null;
+  private calledPeers = new Set<string>();
 
   constructor(roomId: string, myPeerId: string, onError: (msg: string) => void) {
     this.roomId = roomId;
@@ -89,8 +92,12 @@ export class VoiceChannel {
 
   /** يبدأ الاتصال — يشترك بقناة الإشارات ويهيّئ الميكروفون
    *  micEnabled=false يخلي الطرف "استماع فقط" (مو مسموح له يتكلم) — للمستمعين
+   *  shouldCallFn: قاعدة تحديد "مين يبدأ المكالمة" — افتراضيًا صاحب المعرّف الأصغر
+   *  (لبث المتكلم الواحد لعدة مستمعين، مرّر: (other) => true لو أنا المتكلم، وإلا () => false)
    */
-  async start(micEnabled: boolean = true) {
+  async start(micEnabled: boolean = true, shouldCallFn?: (otherPeerId: string) => boolean) {
+    if (shouldCallFn) this.shouldCall = shouldCallFn;
+
     // فتح إذن تشغيل الصوت بالمتصفح فور الضغطة (أول شي بالدالة، لسا داخل نفس بادرة المستخدم)
     // يمنع فشل التشغيل التلقائي الصامت لاحقًا لما يوصل صوت الطرف الثاني بعد التفاوض
     try {
@@ -135,15 +142,39 @@ export class VoiceChannel {
       }
     });
 
+    // "hello" — بث تعارف عام (بدون "to" محدد)، يحل مشكلة توقيت الانضمام
+    // (مين يشترك أول ما يهم — كل طرف يعلن حضوره، والطرف اللي قاعدته shouldCall صح يبدأ المكالمة)
+    this.channel.on("broadcast", { event: "hello" }, ({ payload }) => {
+      if (payload.from === this.myPeerId) return;
+      if (this.shouldCall(payload.from) && !this.calledPeers.has(payload.from)) {
+        this.calledPeers.add(payload.from);
+        this.callPeer(payload.from);
+      }
+    });
+
     await new Promise<void>((resolve) => {
       this.channel!.subscribe((status) => {
         if (status === "SUBSCRIBED") resolve();
       });
     });
+
+    // أعلن حضوري فورًا، وكرّرها كل ثانيتين لأول 10 ثواني — يضمن وصولها حتى لو الطرف الثاني اشترك متأخر
+    const sayHello = () => this.channel?.send({ type: "broadcast", event: "hello", payload: { from: this.myPeerId } });
+    sayHello();
+    let helloCount = 0;
+    this.helloTimer = setInterval(() => {
+      sayHello();
+      helloCount++;
+      if (helloCount >= 5 && this.helloTimer) {
+        clearInterval(this.helloTimer);
+        this.helloTimer = null;
+      }
+    }, 2000);
   }
 
-  /** يبدأ اتصال (Offer) باتجاه لاعب ثاني محدد — يُستدعى من الطرف اللي يبدأ المكالمة */
+  /** يبدأ اتصال (Offer) باتجاه لاعب ثاني محدد — يُستدعى تلقائيًا عبر آلية hello، أو يدويًا لو احتجت */
   async callPeer(otherPeerId: string) {
+    this.calledPeers.add(otherPeerId);
     const peer = this.getOrCreatePeer(otherPeerId);
     const offer = await peer.connection.createOffer();
     await peer.connection.setLocalDescription(offer);
@@ -152,6 +183,11 @@ export class VoiceChannel {
 
   /** ينهي كل الاتصالات ويطفي الميكروفون */
   stop() {
+    if (this.helloTimer) {
+      clearInterval(this.helloTimer);
+      this.helloTimer = null;
+    }
+    this.calledPeers.clear();
     this.peers.forEach((p) => {
       p.connection.close();
       p.audioEl.remove();

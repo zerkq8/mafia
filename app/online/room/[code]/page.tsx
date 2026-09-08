@@ -48,7 +48,6 @@ export default function OnlineWaitingRoomPage() {
 
   // --- صوت غرفة الانتظار (جماعي، اختياري، شبكة كاملة بين كل الحاضرين) ---
   const voiceRef = useRef<VoiceChannel | null>(null);
-  const connectedPeersRef = useRef<Set<string>>(new Set());
   const [voiceJoined, setVoiceJoined] = useState(false);
   const [voiceError, setVoiceError] = useState("");
   const [micMuted, setMicMuted] = useState(false);
@@ -270,37 +269,18 @@ export default function OnlineWaitingRoomPage() {
     setVoiceError("");
     const voice = new VoiceChannel(room.id, myPlayerId, setVoiceError);
     voiceRef.current = voice;
-    await voice.start(!me?.is_spectator); // المستمعون يستمعون بس، ما يتكلمون
+    // المستمعون يستمعون بس، ما يتكلمون — الباقي شبكة كاملة (كل واحد يتصل بالكل تلقائيًا عبر آلية hello)
+    await voice.start(!me?.is_spectator);
     setVoiceJoined(true);
-
-    // اتصل بكل الحاضرين اللي معرّفهم أكبر من معرّفي (تفادي اتصال مزدوج بين نفس الاثنين)
-    players.forEach((p) => {
-      if (p.id !== myPlayerId && p.id > myPlayerId && !connectedPeersRef.current.has(p.id)) {
-        connectedPeersRef.current.add(p.id);
-        voice.callPeer(p.id);
-      }
-    });
   }
 
   function leaveLobbyVoice() {
     voiceRef.current?.stop();
     voiceRef.current = null;
-    connectedPeersRef.current.clear();
     setVoiceJoined(false);
     setMicMuted(false);
     setListeningMuted(false);
   }
-
-  // لما ينضم لاعب جديد وأنا بالفعل داخل صوت الغرفة، اتصل فيه لو معرّفه أكبر
-  useEffect(() => {
-    if (!voiceJoined || !voiceRef.current || !myPlayerId) return;
-    players.forEach((p) => {
-      if (p.id !== myPlayerId && p.id > myPlayerId && !connectedPeersRef.current.has(p.id)) {
-        connectedPeersRef.current.add(p.id);
-        voiceRef.current!.callPeer(p.id);
-      }
-    });
-  }, [players, voiceJoined, myPlayerId]);
 
   // تنظيف عند مغادرة الصفحة
   useEffect(() => {
