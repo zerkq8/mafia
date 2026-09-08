@@ -428,12 +428,18 @@ export default function OnlineWaitingRoomPage() {
               </span>
             )}
             <div
-              className="aspect-square w-full rounded-lg flex items-center justify-center overflow-hidden"
+              className="relative aspect-square w-full rounded-lg flex items-center justify-center overflow-hidden"
               style={{
                 background: p ? "#FFFFFF" : "transparent",
                 border: `1px solid ${p?.auth_id === myAuthId ? "#C9A227" : p ? "#DED4B8" : "#EEE5D0"}`,
               }}
             >
+              <span
+                className="absolute top-1 right-1 text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
+                style={{ background: "#F0E9D6", color: "#8B7F68" }}
+              >
+                {i + 1}
+              </span>
               {p ? (
                 <img
                   src={p.is_ready ? "/avatars/default-ready.png" : "/avatars/default-gray.png"}
