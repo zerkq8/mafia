@@ -11,7 +11,19 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
  * لو صار كذا كثير، الحل يحتاج سيرفر TURN مدفوع بسيط لاحقًا.
  */
 
-const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
+// STUN عام مجاني + TURN احتياطي (لو الاتصال المباشر فشل بسبب عزل الشبكة/NAT صارم)
+// أكواد TURN تُقرأ من متغيّر بيئة واحد (JSON) — لو غير موجود، يشتغل بـSTUN بس (زي السابق)
+const ICE_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
+
+try {
+  const turnJson = process.env.NEXT_PUBLIC_TURN_ICE_SERVERS_JSON;
+  if (turnJson) {
+    const extra = JSON.parse(turnJson) as RTCIceServer[];
+    ICE_SERVERS.push(...extra);
+  }
+} catch {
+  // JSON غير صالح — نكمل بـSTUN بس بدل ما نكسر الصفحة
+}
 
 export interface VoicePeer {
   peerId: string;
