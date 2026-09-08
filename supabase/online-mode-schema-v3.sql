@@ -31,9 +31,11 @@ create table if not exists online_day_votes (
 alter table online_day_votes enable row level security;
 
 -- التصويت علني بالكامل — أي عضو بالغرفة يشوف كل الأصوات (مو سرّي زي أفعال الليل)
+drop policy if exists online_day_votes_select on online_day_votes;
 create policy online_day_votes_select on online_day_votes
   for select using (room_id in (select my_online_room_ids()));
 
+drop policy if exists online_day_votes_insert_self on online_day_votes;
 create policy online_day_votes_insert_self on online_day_votes
   for insert with check (
     voter_player_id in (select id from online_players where auth_id = auth.uid())
