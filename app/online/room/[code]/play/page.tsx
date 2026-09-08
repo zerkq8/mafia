@@ -283,12 +283,13 @@ export default function OnlinePlayPage() {
     setChatInput("");
     const supabase = getSupabaseBrowserClient();
     const me = players.find((p) => p.id === myPlayerId);
-    await supabase.from("online_chat_messages").insert({
+    const { error } = await supabase.from("online_chat_messages").insert({
       room_id: room.id,
       sender_player_id: myPlayerId,
       sender_name: me?.name || "لاعب",
       message: text.slice(0, 300),
     });
+    if (error) setActionError("تعذّر إرسال الرسالة: " + error.message);
   }
 
   // ---- التصويت (قناة لحظية) ----
