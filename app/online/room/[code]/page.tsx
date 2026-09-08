@@ -378,7 +378,7 @@ export default function OnlineWaitingRoomPage() {
                     </span>
                   )}
                   <div
-                    className="relative rounded-lg flex items-center justify-center overflow-hidden"
+                    className="relative rounded-full flex items-center justify-center overflow-hidden"
                     style={{
                       width: 56,
                       height: 56,
@@ -387,8 +387,8 @@ export default function OnlineWaitingRoomPage() {
                     }}
                   >
                     <span
-                      className="absolute top-0.5 right-0.5 text-[11px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center"
-                      style={{ background: "#F0E9D6", color: "#8B7F68" }}
+                      className="absolute -bottom-0.5 -left-0.5 text-[11px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
+                      style={{ background: "#C9A227", color: "#2B2117", border: "2px solid #F7ECD9" }}
                     >
                       {i + 1}
                     </span>

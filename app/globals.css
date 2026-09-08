@@ -67,3 +67,19 @@ button:active:not(:disabled) {
   pointer-events: none;
   animation: sparkle-out 0.6s ease-out forwards;
 }
+
+/* لمحة الانتقال بين مراحل اللعبة الأونلاين — تظهر وتختفي بسلاسة */
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

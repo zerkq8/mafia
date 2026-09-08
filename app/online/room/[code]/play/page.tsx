@@ -270,17 +270,54 @@ export default function OnlinePlayPage() {
     return () => clearInterval(frame);
   }, [room?.status, room?.current_speaker_id, myPlayerId]);
 
+  const [showTransition, setShowTransition] = useState(false);
+  const [transitionLabel, setTransitionLabel] = useState("");
+
+  const PHASE_LABEL: Record<string, string> = {
+    role_reveal: "🎴 كشف الأدوار",
+    mafia_recognition: "🔴 تعارف المافيا",
+    detective_intro: "🔍 تحقيق سريع",
+    mafia_phase: "🌙 مرحلة المافيا",
+    detective_phase: "🌙 مرحلة الشرطي",
+    doctor_phase: "🌙 مرحلة الطبيب",
+    speaking_turn: "☀️ دور الكلام",
+    speaking_done: "☀️ انتهى الكلام",
+    day_vote: "🗳️ التصويت",
+    day_vote_result: "📋 نتيجة التصويت",
+    game_over: "🏁 انتهت اللعبة",
+  };
+
   // إعادة تصفير حالة "أرسلت" بس عند تغيّر حقيقي بالمرحلة (مو أول تحميل، عشان ما يمسح استرجاع الحالة)
   useEffect(() => {
     if (!room) return;
+    let cleanupTimer: ReturnType<typeof setTimeout> | null = null;
+
     if (prevStatusRef.current !== null && prevStatusRef.current !== room.status) {
       setSelectedTarget(null);
       setSubmitted(false);
       setShowTeam(false);
       if (room.status !== "speaking_turn" && room.status !== "speaking_done") setInvestigationResult(null);
       if (room.status !== "day_vote") setMyVoteTarget(null);
+
+      // ⏱️ لمحة انتقالية بين المراحل — "انتهى الوقت" لو جاي من مرحلة فيها مؤقت، وإلا اسم المرحلة الجديدة بس
+      const timedPhases = [
+        "role_reveal", "mafia_recognition", "detective_intro",
+        "mafia_phase", "detective_phase", "doctor_phase",
+        "speaking_turn", "day_vote", "day_vote_result",
+      ];
+      setTransitionLabel(
+        timedPhases.includes(prevStatusRef.current)
+          ? `⏱️ انتهى الوقت — ${PHASE_LABEL[room.status] || ""}`
+          : PHASE_LABEL[room.status] || ""
+      );
+      setShowTransition(true);
+      cleanupTimer = setTimeout(() => setShowTransition(false), 900);
     }
+
     prevStatusRef.current = room.status;
+    return () => {
+      if (cleanupTimer) clearTimeout(cleanupTimer);
+    };
   }, [room?.status]);
 
   useEffect(() => {
@@ -801,6 +838,19 @@ export default function OnlinePlayPage() {
 
   return (
     <main className="min-h-screen px-4 py-4 max-w-md mx-auto flex flex-col">
+      {showTransition && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{
+            background: "rgba(247,236,217,0.92)",
+            animation: "fadeInOut 0.9s ease",
+          }}
+        >
+          <p className="text-xl font-display font-bold text-center px-6" style={{ color: "#C9A227" }}>
+            {transitionLabel}
+          </p>
+        </div>
+      )}
       {isDead && (
         <div
           className="rounded-xl px-4 py-2 mb-3 text-center text-xs font-bold"
@@ -876,29 +926,39 @@ export default function OnlinePlayPage() {
                     <div key={p.id} className="flex flex-col items-center">
                       <span className="text-[11px] text-muted truncate max-w-full">{p.name}</span>
                       <div
-                        className="relative rounded-md flex items-center justify-center text-sm font-bold"
+                        className="relative rounded-full flex items-center justify-center overflow-hidden"
                         style={{
                           width: 52,
                           height: 52,
-                          background: isSpeakingNow ? "#C9A22733" : "#141B26",
-                          border: `1px solid ${
-                            p.id === myPlayerId ? "#C9A227" : isSpeakingNow ? "#C9A227" : "#2A3342"
+                          background: "#FFFFFF",
+                          border: `2px solid ${
+                            p.id === myPlayerId ? "#C9A227" : isSpeakingNow ? "#3FA37A" : "#DED4B8"
                           }`,
-                          color: p.is_alive ? "#EDEAE0" : "#4A5264",
-                          opacity: p.is_alive ? 1 : 0.5,
-                          boxShadow: isSpeakingNow ? `0 0 ${10 + glow * 22}px ${glow}px #C9A227` : "none",
+                          opacity: p.is_alive ? 1 : 0.45,
+                          boxShadow: isSpeakingNow ? `0 0 ${10 + glow * 22}px ${glow}px #3FA37A` : "none",
                           transform: isSpeakingNow ? `scale(${1 + speakerLevel * 0.06})` : "scale(1)",
                           transition: "transform 0.1s ease, box-shadow 0.1s ease",
                         }}
                       >
-                        {p.seat_number}
+                        <img
+                          src={p.is_alive ? "/avatars/default-ready.png" : "/avatars/default-gray.png"}
+                          alt=""
+                          className="w-full h-full object-contain p-1.5"
+                        />
+                        <span
+                          className="absolute -bottom-0.5 -left-0.5 text-[11px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
+                          style={{ background: "#C9A227", color: "#2B2117", border: "2px solid #F7ECD9" }}
+                        >
+                          {p.seat_number}
+                        </span>
                         {isSpeakingNow && (
                           <span
-                            className="absolute -top-1.5 -left-1.5 text-[11px] rounded-full flex items-center justify-center"
+                            className="absolute -top-1 -right-1 text-[11px] rounded-full flex items-center justify-center"
                             style={{
-                              width: 16,
-                              height: 16,
-                              background: "#C9A227",
+                              width: 18,
+                              height: 18,
+                              background: "#3FA37A",
+                              border: "2px solid #F7ECD9",
                               transform: `scale(${1 + speakerLevel * 0.5})`,
                               transition: "transform 0.1s ease",
                             }}
@@ -913,7 +973,7 @@ export default function OnlinePlayPage() {
             </div>
           ))}
 
-          {/* الوسط الفاضي — الحالة الحيّة: المرحلة، المؤقت، مين يتكلم */}
+          {/* الوسط الفاضي — الحالة الحيّة: المرحلة، المؤقت البارز، مين يتكلم */}
           <div
             className="flex flex-col items-center justify-center text-center"
             style={{ order: 2, width: 110, minHeight: 200 }}
@@ -921,7 +981,7 @@ export default function OnlinePlayPage() {
             <p className="text-[11px] tracking-widest text-muted mb-1">
               جولة {room.round_number}
             </p>
-            <p className="text-sm font-bold mb-2" style={{ color: "#C9A227" }}>
+            <p className="text-sm font-bold mb-3" style={{ color: "#C9A227" }}>
               {room.status === "mafia_recognition" && "🔴 تعارف المافيا"}
               {room.status === "detective_intro" && "🔍 تحقيق سريع"}
               {room.status === "mafia_phase" && "🌙 المافيا"}
@@ -934,16 +994,28 @@ export default function OnlinePlayPage() {
               {room.status === "game_over" && "🏁 انتهت"}
             </p>
             {room.status === "speaking_turn" && (
-              <p className="text-[11px] mb-1" style={{ color: "#EDEAE0" }}>
+              <p className="text-[11px] mb-2" style={{ color: "#EDEAE0" }}>
                 {players.find((p) => p.id === room.current_speaker_id)?.name || "—"}
               </p>
             )}
             {(countdown !== null || nightCountdown !== null) && (
-              <p dir="ltr" className="text-2xl font-display" style={{ color: "#C9A227" }}>
-                {countdown ?? nightCountdown}
-              </p>
+              <div
+                className="flex flex-col items-center justify-center rounded-full mb-2"
+                style={{
+                  width: 76,
+                  height: 76,
+                  background: "#141B26",
+                  border: "3px solid #C9A227",
+                  boxShadow: "0 0 16px -4px #C9A22766",
+                }}
+              >
+                <span className="text-sm mb-0.5">⏱️</span>
+                <p dir="ltr" className="text-xl font-display leading-none" style={{ color: "#EDEAE0" }}>
+                  {(countdown ?? nightCountdown)}s
+                </p>
+              </div>
             )}
-            <p className="text-[11px] mt-2" style={{ color: "#8A93A6" }}>
+            <p className="text-[11px] mt-1" style={{ color: "#8A93A6" }}>
               {players.filter((p) => p.is_alive && !p.is_spectator).length} أحياء من{" "}
               {players.filter((p) => !p.is_spectator).length}
             </p>
