@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
     await admin
       .from("online_rooms")
-      .update({ status: "speaking_done" })
+      .update({ status: "day_vote", day_vote_started_at: new Date().toISOString() })
       .eq("id", room.id);
 
     return NextResponse.json({ success: true });

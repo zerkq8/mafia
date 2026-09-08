@@ -16,6 +16,9 @@ interface RoomRow {
   mafia_recognition_started_at: string | null;
   current_speaker_id: string | null;
   speaking_started_at: string | null;
+  day_vote_started_at: string | null;
+  winner: string | null;
+  last_voted_out_player_id: string | null;
 }
 
 interface PlayerRow {
@@ -94,6 +97,11 @@ export default function OnlinePlayPage() {
   const [chatInput, setChatInput] = useState("");
   const [showChat, setShowChat] = useState(false);
 
+  // --- التصويت ---
+  const [votes, setVotes] = useState<{ voter_player_id: string; target_player_id: string }[]>([]);
+  const [myVoteTarget, setMyVoteTarget] = useState<string | null>(null);
+  const [allRoles, setAllRoles] = useState<{ player_id: string; name: string; role: RoleKey }[]>([]);
+
   const load = useCallback(async () => {
     try {
       const session = await ensureAnonymousSession();
@@ -103,7 +111,7 @@ export default function OnlinePlayPage() {
       const { data: roomData, error: roomError } = await supabase
         .from("online_rooms")
         .select(
-          "id, status, round_number, last_death_player_id, role_reveal_started_at, mafia_recognition_started_at, current_speaker_id, speaking_started_at"
+          "id, status, round_number, last_death_player_id, role_reveal_started_at, mafia_recognition_started_at, current_speaker_id, speaking_started_at, day_vote_started_at, winner, last_voted_out_player_id"
         )
         .eq("code", code)
         .maybeSingle();
@@ -184,6 +192,24 @@ export default function OnlinePlayPage() {
         .order("created_at", { ascending: true })
         .limit(100);
       setChatMessages((chatData as ChatMessage[]) || []);
+
+      if (roomData.status === "day_vote" || roomData.status === "game_over") {
+        const { data: votesData } = await supabase
+          .from("online_day_votes")
+          .select("voter_player_id, target_player_id")
+          .eq("room_id", roomData.id)
+          .eq("round_number", roomData.round_number);
+        setVotes(votesData || []);
+        const myVote = (votesData || []).find((v) => v.voter_player_id === mine?.id);
+        if (myVote) setMyVoteTarget(myVote.target_player_id);
+      }
+
+      if (roomData.status === "game_over") {
+        const { data: rolesData } = await supabase.rpc("get_all_online_roles_if_game_over", {
+          p_room_id: roomData.id,
+        });
+        setAllRoles(rolesData || []);
+      }
     } catch (e: any) {
       setError(e.message || "حدث خطأ غير متوقع.");
     } finally {
@@ -205,6 +231,7 @@ export default function OnlinePlayPage() {
       setSubmitted(false);
       setShowTeam(false);
       if (room.status !== "speaking_turn" && room.status !== "speaking_done") setInvestigationResult(null);
+      if (room.status !== "day_vote") setMyVoteTarget(null);
     }
     prevStatusRef.current = room.status;
   }, [room?.status]);
@@ -262,6 +289,51 @@ export default function OnlinePlayPage() {
       sender_name: me?.name || "لاعب",
       message: text.slice(0, 300),
     });
+  }
+
+  // ---- التصويت (قناة لحظية) ----
+  useEffect(() => {
+    if (!room) return;
+    const supabase = getSupabaseBrowserClient();
+    const voteChannel = supabase
+      .channel(`online-votes-${room.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "online_day_votes", filter: `room_id=eq.${room.id}` },
+        () => {
+          supabase
+            .from("online_day_votes")
+            .select("voter_player_id, target_player_id")
+            .eq("room_id", room.id)
+            .eq("round_number", room.round_number)
+            .then(({ data }) => setVotes(data || []));
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(voteChannel);
+    };
+  }, [room?.id, room?.round_number]);
+
+  async function submitVote(targetPlayerId: string) {
+    if (!room) return;
+    setActionError("");
+    setMyVoteTarget(targetPlayerId);
+    try {
+      const supabase = getSupabaseBrowserClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      const res = await fetch("/api/online/rooms/submit-vote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ roomCode: code, targetPlayerId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "تعذّر التصويت.");
+    } catch (e: any) {
+      setActionError(e.message);
+      setMyVoteTarget(null);
+    }
   }
 
   // ---- مرحلة كشف الدور (5 ثواني، بدون صوت) ----
@@ -470,7 +542,7 @@ export default function OnlinePlayPage() {
     );
   }
 
-  if (!myAlive) {
+  if (!myAlive && room.status !== "game_over") {
     return (
       <main
         className="min-h-screen flex flex-col items-center justify-center px-6 gap-3"
@@ -509,6 +581,8 @@ export default function OnlinePlayPage() {
           {room.status === "doctor_phase" && "🌙 مرحلة الطبيب"}
           {room.status === "speaking_turn" && "☀️ دور الكلام"}
           {room.status === "speaking_done" && "☀️ انتهى الكلام"}
+          {room.status === "day_vote" && "🗳️ التصويت"}
+          {room.status === "game_over" && "🏁 انتهت اللعبة"}
         </p>
         <p className="text-[11px] text-muted mt-1">
           {isSpectator ? "أنت مستمع/متفرج" : `دورك: ${myRole ? ROLE_NAME[myRole] : "—"}`}
@@ -633,7 +707,11 @@ export default function OnlinePlayPage() {
 
       {(room.status === "speaking_turn" || room.status === "speaking_done") && (
         <div className="rounded-2xl p-6 mb-5 text-center" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
-          {deadPlayer ? (
+          {room.round_number === 1 ? (
+            <p className="text-sm mb-3" style={{ color: "#EDEAE0" }}>
+              الجولة الأولى — تعارف بس، بدون قتل الليلة.
+            </p>
+          ) : deadPlayer ? (
             <p className="text-sm mb-3" style={{ color: "#EDEAE0" }}>
               تم العثور على <span className="font-bold" style={{ color: "#E05A4A" }}>{deadPlayer.name}</span> مقتولًا الليلة.
             </p>
@@ -660,9 +738,82 @@ export default function OnlinePlayPage() {
           )}
           {room.status === "speaking_done" && (
             <p className="text-xs" style={{ color: "#8A93A6" }}>
-              انتهت الجولة الحالية من اللعبة (التصويت قريبًا).
+              جارٍ فتح التصويت...
             </p>
           )}
+        </div>
+      )}
+
+      {/* التصويت النهاري — علني، الكل يشوف مين صوّت لمين لحظيًا */}
+      {room.status === "day_vote" && (
+        <div className="rounded-2xl p-4 mb-5" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
+          <p className="text-xs text-center mb-3" style={{ color: "#8A93A6" }}>
+            {isSpectator || !myAlive
+              ? "التصويت جارٍ..."
+              : myVoteTarget
+              ? "صوّتك سُجّل — تقدر تغيّره لين ما يصوّت الكل"
+              : "صوّت لطرد لاعب"}
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {alivePlayers.map((p) => {
+              const voteCount = votes.filter((v) => v.target_player_id === p.id).length;
+              const votersNames = votes
+                .filter((v) => v.target_player_id === p.id)
+                .map((v) => players.find((pp) => pp.id === v.voter_player_id)?.name)
+                .filter(Boolean)
+                .join("، ");
+              return (
+                <button
+                  key={p.id}
+                  disabled={isSpectator || !myAlive}
+                  onClick={() => submitVote(p.id)}
+                  className="text-sm px-4 py-2.5 rounded-lg text-right flex items-center justify-between disabled:opacity-60"
+                  style={{
+                    background: myVoteTarget === p.id ? "#C9A22733" : "#0F141C",
+                    border: `1px solid ${myVoteTarget === p.id ? "#C9A227" : "#2A3342"}`,
+                    color: "#EDEAE0",
+                  }}
+                >
+                  <span className="flex flex-col items-start">
+                    <span>{p.name}</span>
+                    {votersNames && (
+                      <span className="text-[9px]" style={{ color: "#5A6270" }}>
+                        صوّت له: {votersNames}
+                      </span>
+                    )}
+                  </span>
+                  {voteCount > 0 && (
+                    <span
+                      className="text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center"
+                      style={{ background: "#8B2635", color: "#EDEAE0" }}
+                    >
+                      {voteCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* نهاية اللعبة */}
+      {room.status === "game_over" && (
+        <div className="rounded-2xl p-6 mb-5 text-center" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
+          <p className="text-3xl mb-2">{room.winner === "mafia" ? "🔴" : "👥"}</p>
+          <p className="text-xl font-bold mb-4" style={{ color: room.winner === "mafia" ? "#C0392B" : "#3FA37A" }}>
+            {room.winner === "mafia" ? "فازت المافيا!" : "فاز الشعب!"}
+          </p>
+          <div className="flex flex-col gap-1.5 text-right">
+            {allRoles.map((r) => (
+              <div key={r.player_id} className="flex justify-between text-xs px-2">
+                <span style={{ color: "#EDEAE0" }}>{r.name}</span>
+                <span style={{ color: r.role === "mafia" ? "#C0392B" : "#8A93A6" }}>
+                  {ROLE_NAME[r.role]}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -724,13 +875,16 @@ export default function OnlinePlayPage() {
       )}
 
       {!isMyTurn &&
-        !["mafia_recognition", "speaking_turn", "speaking_done"].includes(room.status) && (
+        !["mafia_recognition", "speaking_turn", "speaking_done", "day_vote", "game_over", "role_reveal"].includes(
+          room.status
+        ) && (
         <p className="text-sm text-center py-10" style={{ color: "#8A93A6" }}>
           الجميع نايم... بانتظار بقية الأدوار
         </p>
       )}
 
-      {(room.status === "speaking_turn" || room.status === "speaking_done") && myRole === "mafia" && (
+      {["speaking_turn", "speaking_done", "day_vote", "game_over"].includes(room.status) &&
+        myRole === "mafia" && (
         <div className="mt-2">
           {!showTeam ? (
             <button
