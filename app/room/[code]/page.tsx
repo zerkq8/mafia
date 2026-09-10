@@ -24,6 +24,14 @@ interface PlayerRow {
   auth_id: string;
 }
 
+function avatarIndexForPlayer(playerId: string): number {
+  let hash = 0;
+  for (let i = 0; i < playerId.length; i++) {
+    hash = (hash * 31 + playerId.charCodeAt(i)) >>> 0;
+  }
+  return (hash % 8) + 1;
+}
+
 export default function LobbyPage() {
   const params = useParams();
   const router = useRouter();
@@ -431,7 +439,7 @@ export default function LobbyPage() {
               >
                 {filled ? (
                   <img
-                    src={p!.is_ready ? "/avatars/default-ready.png" : "/avatars/default-gray.png"}
+                    src={`/avatars/set/avatar-${p!.is_ready ? "ready" : "gray"}-${avatarIndexForPlayer(p!.id)}.png`}
                     alt=""
                     className="w-full h-full object-contain p-1.5"
                     style={{ transition: "opacity 0.3s ease" }}
