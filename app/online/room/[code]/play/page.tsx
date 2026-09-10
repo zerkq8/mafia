@@ -988,7 +988,7 @@ export default function OnlinePlayPage() {
                         </span>
                         {votersOnMe.length > 0 && (
                           <span
-                            className="absolute -top-1 -right-1 text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+                            className="absolute -top-1 -right-1 text-[11px] font-bold rounded-full flex items-center justify-center px-1"
                             style={{
                               minWidth: 18,
                               height: 18,
