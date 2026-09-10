@@ -370,12 +370,19 @@ export default function OnlineWaitingRoomPage() {
                   style={{ width: 56, cursor: isCreator && p && p.auth_id !== myAuthId ? "pointer" : "default" }}
                 >
                   {p && (
-                    <span
-                      className="text-[11px] leading-tight text-center break-all max-w-full px-0.5"
-                      style={{ color: p.auth_id === myAuthId ? "#C9A227" : "#2B2117" }}
-                    >
-                      {p.name}
-                    </span>
+                    <>
+                      {p.auth_id === myAuthId && (
+                        <span className="text-[11px] font-bold" style={{ color: "#C9A227" }}>
+                          👇 أنت
+                        </span>
+                      )}
+                      <span
+                        className="text-[11px] leading-tight text-center break-all max-w-full px-0.5"
+                        style={{ color: p.auth_id === myAuthId ? "#C9A227" : "#2B2117" }}
+                      >
+                        {p.name}
+                      </span>
+                    </>
                   )}
                   <div
                     className="relative rounded-full flex items-center justify-center overflow-hidden"
@@ -383,12 +390,19 @@ export default function OnlineWaitingRoomPage() {
                       width: 56,
                       height: 56,
                       background: p ? "#FFFFFF" : "transparent",
-                      border: `1px solid ${p?.auth_id === myAuthId ? "#C9A227" : p ? "#DED4B8" : "#EEE5D0"}`,
+                      border: `${p?.auth_id === myAuthId ? 3 : 1}px solid ${p?.auth_id === myAuthId ? "#C9A227" : p ? "#DED4B8" : "#EEE5D0"}`,
                     }}
                   >
                     <span
-                      className="absolute -bottom-0.5 -left-0.5 text-[11px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
-                      style={{ background: "#C9A227", color: "#2B2117", border: "2px solid #F7ECD9" }}
+                      className="absolute -bottom-1 -left-1 text-[11px] font-bold rounded-full flex items-center justify-center"
+                      style={{
+                        width: 20,
+                        height: 20,
+                        background: "#C9A227",
+                        color: "#2B2117",
+                        border: "2px solid #F7ECD9",
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                      }}
                     >
                       {i + 1}
                     </span>

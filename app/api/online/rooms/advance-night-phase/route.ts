@@ -6,7 +6,7 @@ import {
   resolveDoctorPhase,
 } from "@/lib/onlineNightResolver";
 
-const NIGHT_PHASE_SECONDS = 30;
+const NIGHT_PHASE_SECONDS = 12;
 
 const STARTED_AT_FIELD: Record<string, string> = {
   mafia_phase: "mafia_phase_started_at",

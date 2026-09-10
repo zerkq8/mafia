@@ -591,7 +591,7 @@ export default function OnlinePlayPage() {
     const startedAt = new Date(startedAtRaw).getTime();
     const timer = setInterval(async () => {
       if (cancelled) return;
-      const remaining = Math.max(0, 30 - Math.floor((Date.now() - startedAt) / 1000));
+      const remaining = Math.max(0, 12 - Math.floor((Date.now() - startedAt) / 1000));
       setNightCountdown(remaining);
       if (remaining <= 0) {
         clearInterval(timer);
@@ -922,20 +922,48 @@ export default function OnlinePlayPage() {
                   const isSpeakingNow =
                     room.status === "speaking_turn" && room.current_speaker_id === p.id;
                   const glow = isSpeakingNow ? 0.15 + speakerLevel * 0.6 : 0;
+                  const isVotingPhase = room.status === "day_vote";
+                  const canVote = isVotingPhase && !isSpectator && myAlive && p.is_alive;
+                  const isMyVote = isVotingPhase && myVoteTarget === p.id;
+                  const votersOnMe = isVotingPhase
+                    ? votes
+                        .filter((v) => v.target_player_id === p.id)
+                        .map((v) => players.find((pp) => pp.id === v.voter_player_id)?.seat_number)
+                        .filter(Boolean)
+                    : [];
                   return (
                     <div key={p.id} className="flex flex-col items-center">
+                      {p.id === myPlayerId && (
+                        <span className="text-[11px] font-bold mb-0.5" style={{ color: "#C9A227" }}>
+                          👇 أنت
+                        </span>
+                      )}
                       <span className="text-[11px] text-muted truncate max-w-full">{p.name}</span>
                       <div
+                        onClick={() => canVote && submitVote(p.id)}
                         className="relative rounded-full flex items-center justify-center overflow-hidden"
                         style={{
                           width: 52,
                           height: 52,
                           background: "#FFFFFF",
-                          border: `2px solid ${
-                            p.id === myPlayerId ? "#C9A227" : isSpeakingNow ? "#3FA37A" : "#DED4B8"
+                          cursor: canVote ? "pointer" : "default",
+                          border: `${p.id === myPlayerId || isMyVote ? 3 : 2}px solid ${
+                            isMyVote
+                              ? "#E05A4A"
+                              : p.id === myPlayerId
+                              ? "#C9A227"
+                              : isSpeakingNow
+                              ? "#3FA37A"
+                              : "#DED4B8"
                           }`,
                           opacity: p.is_alive ? 1 : 0.45,
-                          boxShadow: isSpeakingNow ? `0 0 ${10 + glow * 22}px ${glow}px #3FA37A` : "none",
+                          boxShadow: isSpeakingNow
+                            ? `0 0 ${10 + glow * 22}px ${glow}px #3FA37A`
+                            : isMyVote
+                            ? "0 0 10px 2px #E05A4A66"
+                            : p.id === myPlayerId
+                            ? "0 0 0 3px #C9A22733"
+                            : "none",
                           transform: isSpeakingNow ? `scale(${1 + speakerLevel * 0.06})` : "scale(1)",
                           transition: "transform 0.1s ease, box-shadow 0.1s ease",
                         }}
@@ -946,11 +974,32 @@ export default function OnlinePlayPage() {
                           className="w-full h-full object-contain p-1.5"
                         />
                         <span
-                          className="absolute -bottom-0.5 -left-0.5 text-[11px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
-                          style={{ background: "#C9A227", color: "#2B2117", border: "2px solid #F7ECD9" }}
+                          className="absolute -bottom-1 -left-1 text-[11px] font-bold rounded-full flex items-center justify-center"
+                          style={{
+                            width: 20,
+                            height: 20,
+                            background: "#C9A227",
+                            color: "#2B2117",
+                            border: "2px solid #F7ECD9",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                          }}
                         >
                           {p.seat_number}
                         </span>
+                        {votersOnMe.length > 0 && (
+                          <span
+                            className="absolute -top-1 -right-1 text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+                            style={{
+                              minWidth: 18,
+                              height: 18,
+                              background: "#E05A4A",
+                              color: "#FFFFFF",
+                              border: "2px solid #F7ECD9",
+                            }}
+                          >
+                            {votersOnMe.length}
+                          </span>
+                        )}
                         {isSpeakingNow && (
                           <span
                             className="absolute -top-1 -right-1 text-[11px] rounded-full flex items-center justify-center"
@@ -996,6 +1045,22 @@ export default function OnlinePlayPage() {
             {room.status === "speaking_turn" && (
               <p className="text-[11px] mb-2" style={{ color: "#EDEAE0" }}>
                 {players.find((p) => p.id === room.current_speaker_id)?.name || "—"}
+              </p>
+            )}
+            {(room.status === "speaking_turn" || room.status === "speaking_done") && (
+              <p className="text-[11px] mb-2 leading-tight" style={{ color: "#8A93A6" }}>
+                {room.round_number === 1
+                  ? "🌙 ليلة تعارف، بدون قتل"
+                  : deadPlayer
+                  ? `💀 ${deadPlayer.name} قُتل الليلة`
+                  : "🎉 محد مات الليلة"}
+              </p>
+            )}
+            {room.status === "day_vote_result" && (
+              <p className="text-[11px] mb-2 leading-tight" style={{ color: "#8A93A6" }}>
+                {room.last_voted_out_player_id
+                  ? `🗳️ ${players.find((p) => p.id === room.last_voted_out_player_id)?.name || ""} طُرد`
+                  : "🗳️ تعادل — محد طلع"}
               </p>
             )}
             {(countdown !== null || nightCountdown !== null) && (
@@ -1078,111 +1143,31 @@ export default function OnlinePlayPage() {
         </div>
       )}
 
-      {(room.status === "speaking_turn" || room.status === "speaking_done") && (
-        <div className="rounded-2xl p-6 mb-5 text-center" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
-          {room.round_number === 1 ? (
-            <p className="text-sm mb-3" style={{ color: "#EDEAE0" }}>
-              الجولة الأولى — تعارف بس، بدون قتل الليلة.
-            </p>
-          ) : deadPlayer ? (
-            <p className="text-sm mb-3" style={{ color: "#EDEAE0" }}>
-              تم العثور على <span className="font-bold" style={{ color: "#E05A4A" }}>{deadPlayer.name}</span> مقتولًا الليلة.
-            </p>
-          ) : (
-            <p className="text-sm mb-3" style={{ color: "#EDEAE0" }}>لم يمت أحد الليلة! 🎉</p>
-          )}
-
+      {(room.status === "speaking_turn" || room.status === "speaking_done") &&
+        room.current_speaker_id === myPlayerId && (
+        <div className="rounded-2xl p-4 mb-5 text-center" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
           {room.status === "speaking_turn" && (
             <>
-              <p className="text-xs mb-1" style={{ color: "#8A93A6" }}>
-                يتكلم الآن — دور {room.speaking_index + 1} من {room.speaking_order?.length || 0}
+              <p className="text-[11px]" style={{ color: "#8A93A6" }}>
+                {micOn ? "🎙️ صوتك يوصل لجميع الحاضرين الآن" : "جارٍ فتح الميكروفون..."}
               </p>
-              <p className="text-lg font-bold mb-2" style={{ color: "#C9A227" }}>
-                {(() => {
-                  const speaker = players.find((p) => p.id === room.current_speaker_id);
-                  return speaker
-                    ? `${speaker.name}${speaker.seat_number ? ` (مقعد ${speaker.seat_number})` : ""}`
-                    : "—";
-                })()}
-                {room.current_speaker_id === myPlayerId && " — أنت"}
-              </p>
-              <p dir="ltr" className="text-3xl font-display" style={{ color: "#C9A227" }}>
-                {countdown ?? 35}
-              </p>
-              {room.current_speaker_id === myPlayerId && (
-                <>
-                  <p className="text-[11px] mt-2" style={{ color: "#8A93A6" }}>
-                    {micOn ? "🎙️ صوتك يوصل لجميع الحاضرين الآن" : "جارٍ فتح الميكروفون..."}
-                  </p>
-                  <button
-                    onClick={skipSpeaking}
-                    className="text-xs px-4 py-2 rounded-full mt-3 font-bold"
-                    style={{ border: "1px solid #8A93A6", color: "#8A93A6" }}
-                  >
-                    تخطي دوري ⏭️
-                  </button>
-                </>
-              )}
+              <button
+                onClick={skipSpeaking}
+                className="text-xs px-4 py-2 rounded-full mt-3 font-bold"
+                style={{ border: "1px solid #8A93A6", color: "#8A93A6" }}
+              >
+                تخطي دوري ⏭️
+              </button>
             </>
-          )}
-          {room.status === "speaking_done" && (
-            <p className="text-xs" style={{ color: "#8A93A6" }}>
-              جارٍ فتح التصويت...
-            </p>
           )}
         </div>
       )}
 
-      {/* التصويت النهاري — علني، بالضغط على مربع اللاعب، أرقام المصوّتين تظهر تحت كل مربع */}
-      {room.status === "day_vote" && (
-        <div className="rounded-2xl p-4 mb-5" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs" style={{ color: "#8A93A6" }}>
-              {isSpectator || !myAlive ? "التصويت جارٍ..." : "اضغط مربع اللاعب اللي تبي تطرده"}
-            </p>
-            <p dir="ltr" className="text-lg font-display" style={{ color: "#C9A227" }}>
-              {countdown ?? 10}
-            </p>
-          </div>
-          <div className="grid grid-cols-4 gap-2 mx-auto" style={{ width: "fit-content" }}>
-            {alivePlayers.map((p) => {
-              const votersOnMe = votes
-                .filter((v) => v.target_player_id === p.id)
-                .map((v) => players.find((pp) => pp.id === v.voter_player_id)?.seat_number)
-                .filter(Boolean);
-              return (
-                <button
-                  key={p.id}
-                  disabled={isSpectator || !myAlive}
-                  onClick={() => submitVote(p.id)}
-                  className="flex flex-col items-center gap-1 disabled:opacity-60"
-                  style={{ width: 64 }}
-                >
-                  <span className="text-[11px] truncate max-w-full" style={{ color: "#8A93A6" }}>
-                    {p.name}
-                  </span>
-                  <div
-                    className="rounded-md flex items-center justify-center text-sm font-bold"
-                    style={{
-                      width: 60,
-                      height: 60,
-                      background: myVoteTarget === p.id ? "#C9A22733" : "#0F141C",
-                      border: `1px solid ${myVoteTarget === p.id ? "#C9A227" : "#2A3342"}`,
-                      color: "#EDEAE0",
-                    }}
-                  >
-                    {p.seat_number}
-                  </div>
-                  {votersOnMe.length > 0 && (
-                    <span className="text-[11px] font-bold" style={{ color: "#E05A4A" }}>
-                      {votersOnMe.map((n) => `#${n}`).join(" ")}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
+      {/* التصويت النهاري — تعليمة بسيطة، التصويت نفسه بالضغط على دائرة اللاعب بالطاولة فوق */}
+      {room.status === "day_vote" && !isSpectator && myAlive && (
+        <p className="text-xs text-center mb-3" style={{ color: "#8A93A6" }}>
+          👆 اضغط دائرة اللاعب اللي تبي تطرده
+        </p>
       )}
 
       {/* نتيجة التصويت */}

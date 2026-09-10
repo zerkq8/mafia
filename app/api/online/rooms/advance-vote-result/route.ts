@@ -28,10 +28,10 @@ export async function POST(req: Request) {
     await admin
       .from("online_rooms")
       .update({
-        status: "mafia_recognition",
+        status: "mafia_phase",
         round_number: room.round_number + 1,
         pending_mafia_target_id: null,
-        mafia_recognition_started_at: new Date().toISOString(),
+        mafia_phase_started_at: new Date().toISOString(),
       })
       .eq("id", room.id);
 
