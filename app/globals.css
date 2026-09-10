@@ -83,3 +83,15 @@ button:active:not(:disabled) {
     opacity: 0;
   }
 }
+
+/* نجوم الخلفية الليلية — وميض خفيف وناعم */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}

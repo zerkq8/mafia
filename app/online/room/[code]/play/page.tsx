@@ -46,6 +46,16 @@ interface ChatMessage {
   created_at: string;
 }
 
+// نجوم الخلفية الليلية — تُولّد مرة وحدة عند تحميل الملف (مش بكل Render) لتفادي الوميض
+const NIGHT_STARS = Array.from({ length: 18 }, () => ({
+  top: Math.random() * 55,
+  left: Math.random() * 100,
+  size: 1 + Math.random() * 2,
+  opacity: 0.4 + Math.random() * 0.5,
+  duration: 2 + Math.random() * 3,
+  delay: Math.random() * 3,
+}));
+
 const ROLE_NAME: Record<RoleKey, string> = {
   mafia: "المافيا",
   doctor: "الطبيب",
@@ -836,8 +846,76 @@ export default function OnlinePlayPage() {
     ? players.find((p) => p.id === room.last_death_player_id)
     : null;
 
+  const NIGHT_PHASES = [
+    "mafia_recognition", "detective_intro",
+    "mafia_phase", "detective_phase", "doctor_phase",
+  ];
+  const isNight = NIGHT_PHASES.includes(room.status);
+
   return (
-    <main className="min-h-screen px-4 py-4 max-w-md mx-auto flex flex-col">
+    <main
+      className="min-h-screen relative px-4 py-4 max-w-md mx-auto flex flex-col"
+      style={{ isolation: "isolate" }}
+    >
+      {/* الخلفية الجوية — سماء ليل↔نهار، نجوم، قمر/شمس، انتقال ناعم 2 ثانية */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(180deg, #0B0E17 0%, #1A2138 55%, #232B45 100%)",
+            opacity: isNight ? 1 : 0,
+            transition: "opacity 2s ease",
+          }}
+        >
+          {NIGHT_STARS.map((s, i) => (
+            <span
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                top: `${s.top}%`,
+                left: `${s.left}%`,
+                width: s.size,
+                height: s.size,
+                background: "#FFFFFF",
+                opacity: s.opacity,
+                animation: `twinkle ${s.duration}s ease-in-out ${s.delay}s infinite`,
+              }}
+            />
+          ))}
+          <div
+            className="absolute rounded-full"
+            style={{
+              top: "6%",
+              left: "72%",
+              width: 46,
+              height: 46,
+              background: "radial-gradient(circle at 35% 35%, #F5EBC8, #D9C88A)",
+              boxShadow: "0 0 28px 6px #F5EBC855",
+            }}
+          />
+        </div>
+        <div
+          className="absolute inset-0"
+          style={{
+            background: "linear-gradient(180deg, #F7ECD9 0%, #F0E0BE 60%, #E8D2AA 100%)",
+            opacity: isNight ? 0 : 1,
+            transition: "opacity 2s ease",
+          }}
+        >
+          <div
+            className="absolute rounded-full"
+            style={{
+              top: "5%",
+              left: "18%",
+              width: 52,
+              height: 52,
+              background: "radial-gradient(circle at 35% 35%, #FFF3D0, #E8B84B)",
+              boxShadow: "0 0 40px 10px #E8B84B55",
+            }}
+          />
+        </div>
+      </div>
+
       {showTransition && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
