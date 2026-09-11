@@ -360,20 +360,6 @@ export default function HomePage() {
                     );
                   })}
 
-                  <div className="flex items-center justify-between pt-2 mt-1" style={{ borderTop: "1px solid #2A3342" }}>
-                    <span className="text-sm flex items-center gap-1.5">
-                      <span>👥</span>
-                      <span style={{ color: "#EDEAE0" }}>الشعب</span>
-                    </span>
-                    <span
-                      dir="ltr"
-                      className="text-sm font-bold"
-                      style={{ color: civilianCount < 0 ? "#E05A4A" : "#3FA37A" }}
-                    >
-                      {civilianCount}
-                    </span>
-                  </div>
-
                   <div
                     className="flex items-center justify-center gap-2 pt-2 mt-1 text-xs flex-wrap"
                     style={{ borderTop: "1px solid #2A3342" }}
