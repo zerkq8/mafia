@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { NeutralPersonIcon } from "@/components/icons/RoleIcon";
+import PlayerAvatar from "@/components/PlayerAvatar";
 import { computeDiscussionRemaining, DISCUSSION_DURATIONS } from "@/lib/discussionTiming";
 
 const PHASE_LABEL: Record<"a" | "b" | "c", string> = {
@@ -14,6 +14,7 @@ const PHASE_LABEL: Record<"a" | "b" | "c", string> = {
 interface PlayerLite {
   id: string;
   name: string;
+  avatar_index?: number | null;
 }
 
 interface Props {
@@ -50,6 +51,10 @@ export default function LocalDiscussionScreen({
 
   const nameOf = useCallback(
     (id: string | null) => (id ? players.find((p) => p.id === id)?.name || "لاعب" : ""),
+    [players]
+  );
+  const avatarOf = useCallback(
+    (id: string) => players.find((p) => p.id === id)?.avatar_index ?? null,
     [players]
   );
 
@@ -149,7 +154,7 @@ export default function LocalDiscussionScreen({
                 border: `1px solid ${isCurrent ? "#C9A227" : "#2A3342"}`,
               }}
             >
-              <NeutralPersonIcon color={isCurrent ? "#C9A227" : "#8A93A6"} size={20} />
+              <PlayerAvatar avatarIndex={avatarOf(id)} size={20} color={isCurrent ? "#C9A227" : "#8A93A6"} />
               <span
                 className="text-sm flex-1 truncate"
                 style={{ color: isCurrent ? "#F5E7BE" : "#EDEAE0" }}

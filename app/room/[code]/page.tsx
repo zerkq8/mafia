@@ -6,6 +6,8 @@ import {
   ensureAnonymousSession,
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
+import { avatarUrl } from "@/lib/avatars";
+import { NeutralPersonIcon } from "@/components/icons/RoleIcon";
 
 interface RoomRow {
   id: string;
@@ -22,14 +24,7 @@ interface PlayerRow {
   is_ready: boolean;
   is_alive: boolean;
   auth_id: string;
-}
-
-function avatarIndexForPlayer(playerId: string): number {
-  let hash = 0;
-  for (let i = 0; i < playerId.length; i++) {
-    hash = (hash * 31 + playerId.charCodeAt(i)) >>> 0;
-  }
-  return (hash % 8) + 1;
+  avatar_index: number | null;
 }
 
 export default function LobbyPage() {
@@ -91,7 +86,7 @@ export default function LobbyPage() {
 
       const { data: playersData, error: playersError } = await supabase
         .from("players")
-        .select("id, name, is_host, is_ready, is_alive, auth_id")
+        .select("id, name, is_host, is_ready, is_alive, auth_id, avatar_index")
         .eq("room_id", roomData.id)
         .order("created_at", { ascending: true });
 
@@ -448,17 +443,22 @@ export default function LobbyPage() {
                 style={{
                   background: filled ? "#141B26" : "transparent",
                   border: `1px solid ${
-                    isMe ? "#C9A227" : filled ? "#2A3342" : "#1E2733"
+                    isMe ? "#C9A227" : filled && p!.is_ready ? "#3FA37A" : filled ? "#2A3342" : "#1E2733"
                   }`,
+                  boxShadow: filled && p!.is_ready ? "0 0 0 2px #3FA37A55, 0 0 10px 1px #3FA37A66" : "none",
+                  transition: "box-shadow 0.25s ease, border-color 0.25s ease",
                 }}
               >
                 {filled ? (
-                  <img
-                    src={`/avatars/set/avatar-${p!.is_ready ? "ready" : "gray"}-${avatarIndexForPlayer(p!.id)}.png`}
-                    alt=""
-                    className="w-full h-full object-contain p-1.5"
-                    style={{ transition: "opacity 0.3s ease" }}
-                  />
+                  avatarUrl(p!.avatar_index) ? (
+                    <img
+                      src={avatarUrl(p!.avatar_index)!}
+                      alt=""
+                      className="w-full h-full object-contain p-1.5"
+                    />
+                  ) : (
+                    <NeutralPersonIcon color="#8A93A6" size={28} />
+                  )
                 ) : (
                   <span className="text-lg" style={{ color: "#2A3342" }}>·</span>
                 )}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { ensureAnonymousSession, getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { ROLES, CONFIGURABLE_ROLES, validateRoleCounts, calcCivilianCount, RoleCounts, RoleKey } from "@/lib/roles";
+import AvatarPicker from "@/components/AvatarPicker";
 
 interface OpenRoom {
   code: string;
@@ -24,6 +25,7 @@ const DEFAULT_COUNTS: RoleCounts = {
 export default function HomePage() {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [avatarIndex, setAvatarIndex] = useState(1);
   const [mode, setMode] = useState<"idle" | "create" | "join">("idle");
   const [playerCount, setPlayerCount] = useState(10);
   const [roleCounts, setRoleCounts] = useState<RoleCounts>(DEFAULT_COUNTS);
@@ -162,6 +164,7 @@ export default function HomePage() {
       const { room } = await callApi("/api/rooms/join", {
         roomCode: targetCode,
         playerName: name,
+        avatarIndex,
       });
       router.push(`/room/${room.code}`);
     } catch (e: any) {
@@ -287,6 +290,8 @@ export default function HomePage() {
 
       {mode !== "idle" && (
         <div className="w-full max-w-sm flex flex-col gap-4">
+          {mode === "join" && <AvatarPicker value={avatarIndex} onChange={setAvatarIndex} />}
+
           <div>
             <label className="block text-xs mb-1" style={{ color: "#8A93A6" }}>أدخل اسمك</label>
             <input

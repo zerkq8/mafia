@@ -32,6 +32,7 @@ interface RoomRow {
 interface PlayerRow {
   id: string;
   name: string;
+  avatar_index: number | null;
 }
 
 export default function DiscussionPage() {
@@ -76,7 +77,7 @@ export default function DiscussionPage() {
 
       const { data: playersData, error: playersError } = await supabase
         .from("players")
-        .select("id, name")
+        .select("id, name, avatar_index")
         .eq("room_id", roomData.id)
         .eq("is_host", false)
         .eq("is_alive", true);

@@ -12,6 +12,7 @@ import LocalVotingScreen from "@/components/LocalVotingScreen";
 import LocalDiscussionScreen from "@/components/LocalDiscussionScreen";
 import LocalSniperRevengeScreen from "@/components/LocalSniperRevengeScreen";
 import LocalGameOverScreen from "@/components/LocalGameOverScreen";
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 /** رسمة ظهر البطاقة — نمط زخرفي محايد بحت (أبيض/أسود) قبل الكشف */
 function CardBackArt() {
@@ -99,7 +100,9 @@ export default function RoleRevealPage() {
   const [votingEliminatedPlayerId, setVotingEliminatedPlayerId] = useState<string | null>(null);
   const [votingTie, setVotingTie] = useState(false);
   const [roundNumber, setRoundNumber] = useState(1);
-  const [roomPlayers, setRoomPlayers] = useState<{ id: string; name: string; is_alive: boolean }[]>([]);
+  const [roomPlayers, setRoomPlayers] = useState<
+    { id: string; name: string; is_alive: boolean; avatar_index: number | null }[]
+  >([]);
 
   const [discussionPhase, setDiscussionPhase] = useState("idle");
   const [discussionOrder, setDiscussionOrder] = useState<string[]>([]);
@@ -171,10 +174,12 @@ export default function RoleRevealPage() {
 
         const { data: playersData } = await supabase
           .from("players")
-          .select("id, name, is_alive")
+          .select("id, name, is_alive, avatar_index")
           .eq("room_id", room.id)
           .eq("is_host", false);
-        setRoomPlayers((playersData as { id: string; name: string; is_alive: boolean }[]) || []);
+        setRoomPlayers(
+          (playersData as { id: string; name: string; is_alive: boolean; avatar_index: number | null }[]) || []
+        );
 
         const { data, error: rpcError } = await supabase.rpc("get_my_role", {
           p_room_id: room.id,
@@ -322,11 +327,14 @@ export default function RoleRevealPage() {
               // نجيب حالة الأحياء الحالية بدقة لحظة بدء دور الانتقام
               supabase
                 .from("players")
-                .select("id, name, is_alive")
+                .select("id, name, is_alive, avatar_index")
                 .eq("room_id", roomId)
                 .eq("is_host", false)
                 .then(({ data }) => {
-                  if (data) setRoomPlayers(data as { id: string; name: string; is_alive: boolean }[]);
+                  if (data)
+                    setRoomPlayers(
+                      data as { id: string; name: string; is_alive: boolean; avatar_index: number | null }[]
+                    );
                 });
             }
           }
@@ -531,6 +539,27 @@ export default function RoleRevealPage() {
           <div className="text-sm mt-1" style={{ color: "#C9A227" }}>{myName}</div>
         )}
       </div>
+
+      {/* قائمة صغيرة أنيقة لكل اللاعبين بالغرفة — تعريف بمين موجود بس، بدون أي كشف لدور أو فريق */}
+      {roomPlayers.length > 0 && (
+        <div className="px-5 pb-3">
+          <div className="flex gap-3 overflow-x-auto max-w-sm mx-auto" style={{ scrollbarWidth: "none" }}>
+            {roomPlayers.map((p) => (
+              <div key={p.id} className="flex flex-col items-center gap-1 flex-shrink-0" style={{ width: 44 }}>
+                <div style={{ opacity: p.is_alive ? 1 : 0.4 }}>
+                  <PlayerAvatar avatarIndex={p.avatar_index} size={32} />
+                </div>
+                <span
+                  className="text-[9px] truncate max-w-full"
+                  style={{ color: p.is_alive ? "#8A93A6" : "#5A6270" }}
+                >
+                  {p.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         <div

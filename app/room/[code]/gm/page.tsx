@@ -39,6 +39,7 @@ interface PlayerWithRole {
   is_ready: boolean;
   role: RoleKey | null;
   team: TeamKey | null;
+  avatar_index: number | null;
 }
 
 export default function GmDashboardPage() {
@@ -88,7 +89,7 @@ export default function GmDashboardPage() {
 
       const { data: playersData, error: playersError } = await supabase
         .from("players")
-        .select("id, name, is_alive, is_ready, is_host")
+        .select("id, name, is_alive, is_ready, is_host, avatar_index")
         .eq("room_id", roomData.id)
         .order("created_at", { ascending: true });
       if (playersError) throw playersError;
@@ -115,6 +116,7 @@ export default function GmDashboardPage() {
             is_ready: p.is_ready,
             role: (a?.role as RoleKey) || null,
             team: (a?.team as TeamKey) || null,
+            avatar_index: p.avatar_index ?? null,
           };
         });
 
@@ -337,7 +339,7 @@ export default function GmDashboardPage() {
         votingResultStartedAt={room.voting_result_started_at}
         eliminatedPlayerId={room.voting_eliminated_player_id}
         tie={room.voting_tie}
-        players={players.map((p) => ({ id: p.id, name: p.name }))}
+        players={players.map((p) => ({ id: p.id, name: p.name, avatar_index: p.avatar_index }))}
         myPlayerId={null}
       />
     );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ensureAnonymousSession, getSupabaseBrowserClient } from "@/lib/supabase/client";
+import AvatarPicker from "@/components/AvatarPicker";
 
 export default function JoinPage() {
   const params = useParams();
@@ -10,6 +11,7 @@ export default function JoinPage() {
   const code = String(params.code || "").toUpperCase();
 
   const [name, setName] = useState("");
+  const [avatarIndex, setAvatarIndex] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -28,7 +30,7 @@ export default function JoinPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ roomCode: code, playerName: name }),
+        body: JSON.stringify({ roomCode: code, playerName: name, avatarIndex }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "تعذّر الانضمام.");
@@ -55,6 +57,8 @@ export default function JoinPage() {
             {code}
           </p>
         </div>
+
+        <AvatarPicker value={avatarIndex} onChange={setAvatarIndex} />
 
         <div>
           <label className="block text-xs mb-1" style={{ color: "#8A93A6" }}>أدخل اسمك</label>

@@ -5,10 +5,16 @@ export async function POST(req: Request) {
   try {
     const authId = await getAuthIdFromRequest(req);
     const body = await req.json();
-    const { roomCode, playerName } = body as {
+    const { roomCode, playerName, avatarIndex } = body as {
       roomCode: string;
       playerName: string;
+      avatarIndex?: number;
     };
+
+    const cleanAvatarIndex =
+      Number.isInteger(avatarIndex) && (avatarIndex as number) >= 1 && (avatarIndex as number) <= 15
+        ? avatarIndex
+        : 1;
 
     const cleanName = (playerName || "")
       .replace(/<[^>]*>/g, "")
@@ -71,6 +77,7 @@ export async function POST(req: Request) {
         name: cleanName,
         is_host: false,
         is_ready: false,
+        avatar_index: cleanAvatarIndex,
       })
       .select()
       .single();

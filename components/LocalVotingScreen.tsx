@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { NeutralPersonIcon } from "@/components/icons/RoleIcon";
+import PlayerAvatar from "@/components/PlayerAvatar";
 
 const TURN_SECONDS = 12;
 
@@ -16,6 +16,7 @@ interface VoteRow {
 interface PlayerLite {
   id: string;
   name: string;
+  avatar_index?: number | null;
 }
 
 interface Props {
@@ -55,6 +56,14 @@ export default function LocalVotingScreen({
   const nameOf = useCallback(
     (id: string | null) => (id ? players.find((p) => p.id === id)?.name || "لاعب" : ""),
     [players]
+  );
+  const avatarOf = useCallback(
+    (id: string) => players.find((p) => p.id === id)?.avatar_index ?? null,
+    [players]
+  );
+  const voteCountOf = useCallback(
+    (id: string) => votes.filter((v) => v.target_player_id === id).length,
+    [votes]
   );
 
   // عدّاد ثانية بثانية للعرض فقط — الحسم الفعلي دايمًا من السيرفر
@@ -156,6 +165,7 @@ export default function LocalVotingScreen({
         {ids.map((id) => {
           const isCurrent = id === currentVoterId;
           const clickable = isMyTurn && id !== myPlayerId;
+          const voteCount = voteCountOf(id);
           return (
             <button
               key={id}
@@ -169,7 +179,23 @@ export default function LocalVotingScreen({
                 opacity: clickable || isCurrent ? 1 : 0.85,
               }}
             >
-              <NeutralPersonIcon color={isCurrent ? "#C9A227" : "#8A93A6"} size={20} />
+              <div className="relative flex-shrink-0">
+                <PlayerAvatar avatarIndex={avatarOf(id)} size={20} color={isCurrent ? "#C9A227" : "#8A93A6"} />
+                {voteCount > 0 && (
+                  <span
+                    className="absolute -top-1.5 -left-1.5 flex items-center justify-center rounded-full text-[9px] font-bold"
+                    style={{
+                      minWidth: 15,
+                      height: 15,
+                      padding: "0 3px",
+                      background: "#E05A4A",
+                      color: "#0B0E14",
+                    }}
+                  >
+                    {voteCount}
+                  </span>
+                )}
+              </div>
               <span
                 className="text-sm flex-1 truncate"
                 style={{ color: isCurrent ? "#F5E7BE" : "#EDEAE0" }}
