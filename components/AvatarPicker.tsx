@@ -26,8 +26,8 @@ export default function AvatarPicker({ value, onChange }: Props) {
               onClick={() => onChange(i)}
               className="rounded-full overflow-hidden"
               style={{
-                width: 40,
-                height: 40,
+                width: 56,
+                height: 56,
                 border: selected ? "2px solid #C9A227" : "2px solid transparent",
                 boxShadow: selected ? "0 0 0 2px #0B0E14, 0 0 8px #C9A22766" : "none",
                 padding: 0,
@@ -36,8 +36,8 @@ export default function AvatarPicker({ value, onChange }: Props) {
               <img
                 src={avatarUrl(i) || ""}
                 alt={`أفاتار ${i}`}
-                width={40}
-                height={40}
+                width={56}
+                height={56}
                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
               />
             </button>
