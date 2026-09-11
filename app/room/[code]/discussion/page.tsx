@@ -112,7 +112,7 @@ export default function DiscussionPage() {
   }
 
   async function startDiscussion() {
-    if (!room || picked.length !== 2) return;
+    if (!room || picked.length > 2) return;
     setStarting(true);
     setActionError("");
     const supabase = getSupabaseBrowserClient();
@@ -198,7 +198,7 @@ export default function DiscussionPage() {
       )}
 
       <p className="text-xs text-center mb-4" style={{ color: "#8A93A6" }}>
-        اختر شخصين بالضبط ليكونوا آخر من يتكلم (غير الشرطيّين — هذولي تلقائيين)
+        اختر حتى شخصين ليكونوا آخر من يتكلم (اختياري — تقدر تختار صفر أو واحد أو اثنين). غير الشرطيّين — هذولي تلقائيين.
       </p>
 
       <div
@@ -230,15 +230,11 @@ export default function DiscussionPage() {
 
       <button
         onClick={startDiscussion}
-        disabled={picked.length !== 2 || starting}
+        disabled={starting}
         className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-40"
         style={{ background: "#C9A227", color: "#0B0E14" }}
       >
-        {starting
-          ? "جارٍ البدء..."
-          : picked.length !== 2
-          ? `اختر ${2 - picked.length} إضافي`
-          : "ابدأ النقاش"}
+        {starting ? "جارٍ البدء..." : "ابدأ النقاش"}
       </button>
     </main>
   );

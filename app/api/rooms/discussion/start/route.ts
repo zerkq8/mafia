@@ -27,9 +27,9 @@ export async function POST(req: Request) {
     }
 
     const ids = Array.from(new Set(selectedPlayerIds || []));
-    if (ids.length !== 2) {
+    if (ids.length > 2) {
       return NextResponse.json(
-        { error: "لازم تختار شخصين بالضبط ليكونوا آخر المتحدثين." },
+        { error: "تقدر تختار شخصين على الأكثر ليكونوا آخر المتحدثين." },
         { status: 400 }
       );
     }
