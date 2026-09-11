@@ -1,10 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+
 interface Props {
   winner: "mafia" | "civilians";
 }
 
 export default function LocalGameOverScreen({ winner }: Props) {
+  const router = useRouter();
   const isMafia = winner === "mafia";
   return (
     <div
@@ -21,6 +24,13 @@ export default function LocalGameOverScreen({ winner }: Props) {
       <p className="text-xs text-center max-w-xs" style={{ color: "#8A93A6" }}>
         انتهت اللعبة. الحكم يقدر يغلق الغرفة أو يبدأ غرفة جديدة.
       </p>
+      <button
+        onClick={() => router.push("/")}
+        className="mt-3 text-xs rounded-full px-4 py-2 border"
+        style={{ color: "#C9A227", borderColor: "#C9A227" }}
+      >
+        🏠 الرجوع للصفحة الرئيسية
+      </button>
     </div>
   );
 }

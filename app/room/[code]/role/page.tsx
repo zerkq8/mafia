@@ -416,6 +416,13 @@ export default function RoleRevealPage() {
         >
           رجوع للغرفة
         </button>
+        <button
+          onClick={() => router.push("/")}
+          className="text-xs rounded-full px-4 py-2 border"
+          style={{ color: "#C9A227", borderColor: "#C9A227" }}
+        >
+          🏠 الرجوع للصفحة الرئيسية
+        </button>
       </main>
     );
   }
