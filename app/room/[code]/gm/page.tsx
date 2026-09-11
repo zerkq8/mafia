@@ -7,6 +7,7 @@ import {
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
 import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
+import LocalVotingScreen from "@/components/LocalVotingScreen";
 
 interface RoomRow {
   id: string;
@@ -14,6 +15,13 @@ interface RoomRow {
   status: string;
   round_number: number;
   host_auth_id: string;
+  voting_phase: string;
+  voting_order: string[];
+  voting_index: number;
+  voting_turn_started_at: string | null;
+  voting_result_started_at: string | null;
+  voting_eliminated_player_id: string | null;
+  voting_tie: boolean;
 }
 
 interface PlayerWithRole {
@@ -47,7 +55,9 @@ export default function GmDashboardPage() {
 
       const { data: roomData, error: roomError } = await supabase
         .from("rooms")
-        .select("id, code, status, round_number, host_auth_id")
+        .select(
+          "id, code, status, round_number, host_auth_id, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie"
+        )
         .eq("code", code)
         .maybeSingle();
 
@@ -141,6 +151,13 @@ export default function GmDashboardPage() {
         { event: "*", schema: "public", table: "players", filter: `room_id=eq.${room.id}` },
         () => load()
       )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${room.id}` },
+        (payload) => {
+          setRoom((prev) => (prev ? { ...prev, ...(payload.new as any) } : prev));
+        }
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -177,6 +194,29 @@ export default function GmDashboardPage() {
       payload: { player_id: player.id, player_name: player.name },
       gm_only: true,
     });
+  }
+
+  async function startVoting() {
+    if (!room) return;
+    const aliveCount = players.filter((p) => p.is_alive).length;
+    if (aliveCount < 2) {
+      setActionError("يحتاج التصويت لاعبين اثنين أحياء على الأقل.");
+      return;
+    }
+    const ok = window.confirm("هل تريد بدء جولة تصويت الآن؟");
+    if (!ok) return;
+
+    setActionError("");
+    const supabase = getSupabaseBrowserClient();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    const res = await fetch("/api/rooms/voting/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ roomCode: code }),
+    });
+    const json = await res.json();
+    if (!res.ok) setActionError(json.error || "تعذّر بدء التصويت.");
   }
 
   async function closeRoom() {
@@ -225,6 +265,25 @@ export default function GmDashboardPage() {
 
   const aliveCount = players.filter((p) => p.is_alive).length;
 
+  if (room.voting_phase === "voting" || room.voting_phase === "result") {
+    return (
+      <LocalVotingScreen
+        roomId={room.id}
+        roomCode={code}
+        roundNumber={room.round_number}
+        votingPhase={room.voting_phase as "voting" | "result"}
+        votingOrder={room.voting_order || []}
+        votingIndex={room.voting_index}
+        votingTurnStartedAt={room.voting_turn_started_at}
+        votingResultStartedAt={room.voting_result_started_at}
+        eliminatedPlayerId={room.voting_eliminated_player_id}
+        tie={room.voting_tie}
+        players={players.map((p) => ({ id: p.id, name: p.name }))}
+        myPlayerId={null}
+      />
+    );
+  }
+
   return (
     <main className="min-h-screen px-5 py-4 max-w-md mx-auto">
       <div className="text-center mb-6">
@@ -247,13 +306,22 @@ export default function GmDashboardPage() {
         <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
       )}
 
-      <button
-        onClick={() => router.push(`/room/${code}/discussion`)}
-        className="w-full rounded-xl py-3 text-sm font-bold mb-6"
-        style={{ background: "#FDFBF6", border: "1px solid #B6963F", color: "#B6963F" }}
-      >
-        🎙️ إدارة النقاش
-      </button>
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => router.push(`/room/${code}/discussion`)}
+          className="flex-1 rounded-xl py-3 text-sm font-bold"
+          style={{ background: "#FDFBF6", border: "1px solid #B6963F", color: "#B6963F" }}
+        >
+          🎙️ إدارة النقاش
+        </button>
+        <button
+          onClick={startVoting}
+          className="flex-1 rounded-xl py-3 text-sm font-bold"
+          style={{ background: "#FDFBF6", border: "1px solid #B2564C", color: "#B2564C" }}
+        >
+          🗳️ تصويت
+        </button>
+      </div>
 
       <div className="flex flex-col gap-1.5">
         {players.map((p) => {

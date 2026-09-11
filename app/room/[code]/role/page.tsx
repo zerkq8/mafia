@@ -8,6 +8,7 @@ import {
 } from "@/lib/supabase/client";
 import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
 import RoleIcon from "@/components/icons/RoleIcon";
+import LocalVotingScreen from "@/components/LocalVotingScreen";
 
 /** رسمة ظهر البطاقة — نمط زخرفي محايد بحت (أبيض/أسود) قبل الكشف */
 function CardBackArt() {
@@ -85,6 +86,16 @@ export default function RoleRevealPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
 
+  const [votingPhase, setVotingPhase] = useState("idle");
+  const [votingOrder, setVotingOrder] = useState<string[]>([]);
+  const [votingIndex, setVotingIndex] = useState(-1);
+  const [votingTurnStartedAt, setVotingTurnStartedAt] = useState<string | null>(null);
+  const [votingResultStartedAt, setVotingResultStartedAt] = useState<string | null>(null);
+  const [votingEliminatedPlayerId, setVotingEliminatedPlayerId] = useState<string | null>(null);
+  const [votingTie, setVotingTie] = useState(false);
+  const [roundNumber, setRoundNumber] = useState(1);
+  const [roomPlayers, setRoomPlayers] = useState<{ id: string; name: string }[]>([]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -93,7 +104,9 @@ export default function RoleRevealPage() {
 
         const { data: room, error: roomError } = await supabase
           .from("rooms")
-          .select("id")
+          .select(
+            "id, round_number, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie"
+          )
           .eq("code", code)
           .maybeSingle();
 
@@ -103,6 +116,14 @@ export default function RoleRevealPage() {
           return;
         }
         setRoomId(room.id);
+        setRoundNumber(room.round_number);
+        setVotingPhase(room.voting_phase);
+        setVotingOrder(room.voting_order || []);
+        setVotingIndex(room.voting_index);
+        setVotingTurnStartedAt(room.voting_turn_started_at);
+        setVotingResultStartedAt(room.voting_result_started_at);
+        setVotingEliminatedPlayerId(room.voting_eliminated_player_id);
+        setVotingTie(room.voting_tie);
 
         const { data: sessionData } = await supabase.auth.getSession();
         const { data: myPlayerRow } = await supabase
@@ -115,6 +136,13 @@ export default function RoleRevealPage() {
           setMyPlayerId(myPlayerRow.id);
           setIsAlive(myPlayerRow.is_alive);
         }
+
+        const { data: playersData } = await supabase
+          .from("players")
+          .select("id, name")
+          .eq("room_id", room.id)
+          .eq("is_host", false);
+        setRoomPlayers((playersData as { id: string; name: string }[]) || []);
 
         const { data, error: rpcError } = await supabase.rpc("get_my_role", {
           p_room_id: room.id,
@@ -225,6 +253,34 @@ export default function RoleRevealPage() {
     };
   }, [myPlayerId]);
 
+  // مراقبة حالة التصويت لحظيًا — تحوّل الشاشة لعرض التصويت فورًا لما الحكم يبدأه
+  useEffect(() => {
+    if (!roomId) return;
+    const supabase = getSupabaseBrowserClient();
+    const channel = supabase
+      .channel(`voting-watch-${roomId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "rooms", filter: `id=eq.${roomId}` },
+        (payload) => {
+          const n = payload.new as any;
+          if (typeof n.voting_phase === "string") setVotingPhase(n.voting_phase);
+          if (Array.isArray(n.voting_order)) setVotingOrder(n.voting_order);
+          if (typeof n.voting_index === "number") setVotingIndex(n.voting_index);
+          if ("voting_turn_started_at" in n) setVotingTurnStartedAt(n.voting_turn_started_at);
+          if ("voting_result_started_at" in n) setVotingResultStartedAt(n.voting_result_started_at);
+          if ("voting_eliminated_player_id" in n)
+            setVotingEliminatedPlayerId(n.voting_eliminated_player_id);
+          if (typeof n.voting_tie === "boolean") setVotingTie(n.voting_tie);
+          if (typeof n.round_number === "number") setRoundNumber(n.round_number);
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [roomId]);
+
   const onGripDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     dragging.current = true;
     const clientX = "clientX" in e ? e.clientX : e.touches?.[0]?.clientX ?? 0;
@@ -312,6 +368,25 @@ export default function RoleRevealPage() {
           خرجت من اللعبة. تقدر تتفرج على الباقي، بس ما عاد عندك أي تأثير على مجرياتها.
         </p>
       </main>
+    );
+  }
+
+  if ((votingPhase === "voting" || votingPhase === "result") && roomId) {
+    return (
+      <LocalVotingScreen
+        roomId={roomId}
+        roomCode={code}
+        roundNumber={roundNumber}
+        votingPhase={votingPhase as "voting" | "result"}
+        votingOrder={votingOrder}
+        votingIndex={votingIndex}
+        votingTurnStartedAt={votingTurnStartedAt}
+        votingResultStartedAt={votingResultStartedAt}
+        eliminatedPlayerId={votingEliminatedPlayerId}
+        tie={votingTie}
+        players={roomPlayers}
+        myPlayerId={myPlayerId}
+      />
     );
   }
 
