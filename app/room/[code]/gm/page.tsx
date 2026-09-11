@@ -52,6 +52,8 @@ export default function GmDashboardPage() {
   const [actionError, setActionError] = useState("");
   const [closing, setClosing] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  // مخفي دايمًا افتراضيًا عند فتح الصفحة — حالة واجهة محلية بس، بدون تخزين أو مزامنة، للسلامة لو الشاشة معروضة على تلفاز مشترك
+  const [playersVisible, setPlayersVisible] = useState(false);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -361,55 +363,72 @@ export default function GmDashboardPage() {
         </button>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        {players.map((p) => {
-          const def = p.role ? ROLES[p.role] : null;
-          return (
-            <div
-              key={p.id}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5"
-              style={{
-                background: "#141B26",
-                border: "1px solid #2A3342",
-                opacity: p.is_alive ? 1 : 0.45,
-              }}
-            >
-              {p.role ? (
-                <img
-                  src={`/roles/color-sm/${p.role}.png`}
-                  alt={def?.nameAr || ""}
-                  width={30}
-                  height={30}
-                  style={{ objectFit: "contain" }}
-                />
-              ) : (
-                <div
-                  className="rounded-full"
-                  style={{ width: 30, height: 30, background: "#2A3342" }}
-                />
-              )}
-              <span className="flex flex-col flex-1">
-                <span className="text-sm" style={{ color: "#EDEAE0" }}>{p.name}</span>
-                <span className="text-[11px]" style={{ color: "#8A93A6" }}>
-                  {def ? def.nameAr : "بدون دور"}
-                </span>
-              </span>
-              <span
-                className="text-[11px] px-2 py-1 rounded-full"
+      <button
+        onClick={() => setPlayersVisible((v) => !v)}
+        className="w-full rounded-xl py-2.5 text-xs font-bold mb-3"
+        style={{ background: "#141B26", border: "1px solid #2A3342", color: "#8A93A6" }}
+      >
+        {playersVisible ? "🙈 إخفاء اللاعبين" : "👁️ إظهار اللاعبين"}
+      </button>
+
+      {!playersVisible ? (
+        <div
+          className="rounded-xl py-6 text-center text-xs mb-1.5"
+          style={{ background: "#141B26", border: "1px solid #2A3342", color: "#5A6270" }}
+        >
+          اللاعبون مخفيون — اضغط 👁️ لإظهارهم
+        </div>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {players.map((p) => {
+            const def = p.role ? ROLES[p.role] : null;
+            return (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5"
                 style={{
-                  background:
-                    p.team === "mafia" ? "#E05A4A33" : "#3FA37A33",
-                  color: p.team === "mafia" ? "#E05A4A" : "#3FA37A",
+                  background: "#141B26",
+                  border: "1px solid #2A3342",
+                  opacity: p.is_alive ? 1 : 0.45,
                 }}
               >
-                {p.team === "mafia" ? "مافيا" : p.team === "civilian" ? "شعب" : "—"}
-                {" · "}
-                {p.is_alive ? "حي" : "ميت"}
-              </span>
-            </div>
-          );
-        })}
-      </div>
+                {p.role ? (
+                  <img
+                    src={`/roles/color-sm/${p.role}.png`}
+                    alt={def?.nameAr || ""}
+                    width={30}
+                    height={30}
+                    style={{ objectFit: "contain" }}
+                  />
+                ) : (
+                  <div
+                    className="rounded-full"
+                    style={{ width: 30, height: 30, background: "#2A3342" }}
+                  />
+                )}
+                <span className="flex flex-col flex-1">
+                  <span className="text-sm" style={{ color: "#EDEAE0" }}>{p.name}</span>
+                  <span className="text-[11px]" style={{ color: "#8A93A6" }}>
+                    {def ? def.nameAr : "بدون دور"}
+                  </span>
+                </span>
+                <span
+                  className="text-[11px] px-2 py-1 rounded-full"
+                  style={{
+                    background:
+                      p.team === "mafia" ? "#E05A4A33" : "#3FA37A33",
+                    color: p.team === "mafia" ? "#E05A4A" : "#3FA37A",
+                  }}
+                >
+                  {p.team === "mafia" ? "مافيا" : p.team === "civilian" ? "شعب" : "—"}
+                  {" · "}
+                  {p.is_alive ? "حي" : "ميت"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="text-[11px] tracking-[0.2em] mt-8 mb-2 text-center" style={{ color: "#8A93A6" }}>
         ⚙️ أدوات الحكم
