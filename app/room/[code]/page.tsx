@@ -351,7 +351,10 @@ export default function LobbyPage() {
   }
 
   return (
-    <main className="min-h-screen relative px-5 py-4 max-w-md mx-auto flex flex-col">
+    <main
+      className="min-h-screen relative px-5 py-4 max-w-md mx-auto flex flex-col"
+      style={{ isolation: "isolate", background: "#0B0E14" }}
+    >
       <div
         className="fixed inset-0 -z-10"
         style={{
