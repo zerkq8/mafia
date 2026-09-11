@@ -143,7 +143,8 @@ export default function LocalVotingScreen({
   const elapsed = votingTurnStartedAt
     ? (Date.now() - new Date(votingTurnStartedAt).getTime()) / 1000
     : 0;
-  const remaining = Math.max(0, Math.ceil(TURN_SECONDS - elapsed));
+  // Math.min احترازي: لو ساعة جهاز اللاعب متأخرة شوي عن السيرفر، ما يظهر رقم أعلى من 10
+  const remaining = Math.min(TURN_SECONDS, Math.max(0, Math.ceil(TURN_SECONDS - elapsed)));
 
   const leftCount = Math.ceil(votingOrder.length / 2);
   const leftIds = votingOrder.slice(0, leftCount);
