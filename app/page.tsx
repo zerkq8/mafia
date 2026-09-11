@@ -123,6 +123,11 @@ export default function HomePage() {
 
   const civilianCount = calcCivilianCount(playerCount, roleCounts);
   const validation = validateRoleCounts(playerCount, roleCounts);
+  const mafiaTeamTotal = roleCounts.mafia + roleCounts.mafia_cop + roleCounts.informer;
+  const civilianTeamTotal =
+    roleCounts.detective + roleCounts.doctor + roleCounts.sniper + civilianCount;
+  const overallTotal = mafiaTeamTotal + civilianTeamTotal;
+  const overallOutOfRange = overallTotal < 8 || overallTotal > 25;
 
   function updateRoleCount(role: RoleKey, delta: number) {
     setRoleCounts((prev) => {
@@ -302,8 +307,8 @@ export default function HomePage() {
                 </label>
                 <input
                   type="range"
-                  min={10}
-                  max={30}
+                  min={8}
+                  max={25}
                   value={playerCount}
                   onChange={(e) => setPlayerCount(Number(e.target.value))}
                   className="w-full"
@@ -366,6 +371,22 @@ export default function HomePage() {
                       style={{ color: civilianCount < 0 ? "#E05A4A" : "#3FA37A" }}
                     >
                       {civilianCount}
+                    </span>
+                  </div>
+
+                  <div
+                    className="flex items-center justify-center gap-2 pt-2 mt-1 text-xs flex-wrap"
+                    style={{ borderTop: "1px solid #2A3342" }}
+                  >
+                    <span style={{ color: "#E05A4A" }}>🔴 المافيا: {mafiaTeamTotal}</span>
+                    <span style={{ color: "#5A6270" }}>|</span>
+                    <span style={{ color: "#3FA37A" }}>👥 الشعب: {civilianTeamTotal}</span>
+                    <span style={{ color: "#5A6270" }}>|</span>
+                    <span
+                      dir="ltr"
+                      style={{ color: overallOutOfRange ? "#E05A4A" : "#8A93A6" }}
+                    >
+                      الإجمالي: {overallTotal}
                     </span>
                   </div>
                 </div>

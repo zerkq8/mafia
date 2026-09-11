@@ -21,11 +21,11 @@ export async function POST(req: Request) {
     }
     if (
       !Number.isInteger(targetPlayerCount) ||
-      targetPlayerCount < 10 ||
-      targetPlayerCount > 30
+      targetPlayerCount < 8 ||
+      targetPlayerCount > 25
     ) {
       return NextResponse.json(
-        { error: "عدد اللاعبين يجب أن يكون بين 10 و30." },
+        { error: "عدد اللاعبين يجب أن يكون بين 8 و25." },
         { status: 400 }
       );
     }
