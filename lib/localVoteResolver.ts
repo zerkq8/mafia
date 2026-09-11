@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { maybeTriggerSniperRevenge } from "@/lib/sniperRevenge";
 
 /**
  * يحسم تصويت الوضع المحلي: يحسب أكثر لاعب أخذ أصوات، يطبّق الإخراج
@@ -63,6 +64,11 @@ export async function resolveLocalVote(admin: SupabaseClient, room: any) {
     })
     .eq("id", room.id)
     .eq("voting_index", room.voting_index);
+
+  // لو المطرود قناص، شغّل دور الانتقام — شاشته تأخذ أولوية العرض فوق نتيجة التصويت
+  if (eliminated) {
+    await maybeTriggerSniperRevenge(admin, room.id, room.round_number, eliminated);
+  }
 
   return { eliminated, tie };
 }

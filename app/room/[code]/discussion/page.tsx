@@ -7,6 +7,7 @@ import {
   getSupabaseBrowserClient,
 } from "@/lib/supabase/client";
 import LocalDiscussionScreen from "@/components/LocalDiscussionScreen";
+import LocalSniperRevengeScreen from "@/components/LocalSniperRevengeScreen";
 
 interface RoomRow {
   id: string;
@@ -19,6 +20,11 @@ interface RoomRow {
   discussion_paused_at: string | null;
   discussion_total_paused_seconds: number;
   discussion_selected_players: string[];
+  sniper_revenge_phase: string;
+  sniper_revenge_sniper_id: string | null;
+  sniper_revenge_started_at: string | null;
+  sniper_revenge_victim_id: string | null;
+  sniper_revenge_result_started_at: string | null;
 }
 
 interface PlayerRow {
@@ -38,6 +44,7 @@ export default function DiscussionPage() {
   const [actionError, setActionError] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
   const [starting, setStarting] = useState(false);
+  const [sniperPlayers, setSniperPlayers] = useState<{ id: string; name: string; is_alive: boolean }[]>([]);
 
   const load = useCallback(async () => {
     try {
@@ -103,6 +110,19 @@ export default function DiscussionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room?.id]);
 
+  useEffect(() => {
+    if (!room || room.sniper_revenge_phase !== "choosing") return;
+    const supabase = getSupabaseBrowserClient();
+    supabase
+      .from("players")
+      .select("id, name, is_alive")
+      .eq("room_id", room.id)
+      .eq("is_host", false)
+      .then(({ data }) => {
+        if (data) setSniperPlayers(data as { id: string; name: string; is_alive: boolean }[]);
+      });
+  }, [room?.id, room?.sniper_revenge_phase]);
+
   function togglePick(id: string) {
     setPicked((prev) => {
       if (prev.includes(id)) return prev.filter((p) => p !== id);
@@ -154,6 +174,21 @@ export default function DiscussionPage() {
           رجوع للوحة الحكم
         </button>
       </main>
+    );
+  }
+
+  if (room.sniper_revenge_phase === "choosing" || room.sniper_revenge_phase === "result") {
+    return (
+      <LocalSniperRevengeScreen
+        roomCode={code}
+        phase={room.sniper_revenge_phase as "choosing" | "result"}
+        sniperId={room.sniper_revenge_sniper_id}
+        startedAt={room.sniper_revenge_started_at}
+        victimId={room.sniper_revenge_victim_id}
+        resultStartedAt={room.sniper_revenge_result_started_at}
+        players={sniperPlayers}
+        myPlayerId={null}
+      />
     );
   }
 

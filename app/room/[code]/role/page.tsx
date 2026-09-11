@@ -10,6 +10,7 @@ import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
 import RoleIcon from "@/components/icons/RoleIcon";
 import LocalVotingScreen from "@/components/LocalVotingScreen";
 import LocalDiscussionScreen from "@/components/LocalDiscussionScreen";
+import LocalSniperRevengeScreen from "@/components/LocalSniperRevengeScreen";
 
 /** رسمة ظهر البطاقة — نمط زخرفي محايد بحت (أبيض/أسود) قبل الكشف */
 function CardBackArt() {
@@ -95,7 +96,7 @@ export default function RoleRevealPage() {
   const [votingEliminatedPlayerId, setVotingEliminatedPlayerId] = useState<string | null>(null);
   const [votingTie, setVotingTie] = useState(false);
   const [roundNumber, setRoundNumber] = useState(1);
-  const [roomPlayers, setRoomPlayers] = useState<{ id: string; name: string }[]>([]);
+  const [roomPlayers, setRoomPlayers] = useState<{ id: string; name: string; is_alive: boolean }[]>([]);
 
   const [discussionPhase, setDiscussionPhase] = useState("idle");
   const [discussionOrder, setDiscussionOrder] = useState<string[]>([]);
@@ -103,6 +104,12 @@ export default function RoleRevealPage() {
   const [discussionTurnStartedAt, setDiscussionTurnStartedAt] = useState<string | null>(null);
   const [discussionPausedAt, setDiscussionPausedAt] = useState<string | null>(null);
   const [discussionTotalPausedSeconds, setDiscussionTotalPausedSeconds] = useState(0);
+
+  const [sniperPhase, setSniperPhase] = useState("idle");
+  const [sniperSniperId, setSniperSniperId] = useState<string | null>(null);
+  const [sniperStartedAt, setSniperStartedAt] = useState<string | null>(null);
+  const [sniperVictimId, setSniperVictimId] = useState<string | null>(null);
+  const [sniperResultStartedAt, setSniperResultStartedAt] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -113,7 +120,7 @@ export default function RoleRevealPage() {
         const { data: room, error: roomError } = await supabase
           .from("rooms")
           .select(
-            "id, round_number, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie, discussion_phase, discussion_order, discussion_index, discussion_turn_started_at, discussion_paused_at, discussion_total_paused_seconds"
+            "id, round_number, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie, discussion_phase, discussion_order, discussion_index, discussion_turn_started_at, discussion_paused_at, discussion_total_paused_seconds, sniper_revenge_phase, sniper_revenge_sniper_id, sniper_revenge_started_at, sniper_revenge_victim_id, sniper_revenge_result_started_at"
           )
           .eq("code", code)
           .maybeSingle();
@@ -138,6 +145,11 @@ export default function RoleRevealPage() {
         setDiscussionTurnStartedAt(room.discussion_turn_started_at);
         setDiscussionPausedAt(room.discussion_paused_at);
         setDiscussionTotalPausedSeconds(room.discussion_total_paused_seconds);
+        setSniperPhase(room.sniper_revenge_phase);
+        setSniperSniperId(room.sniper_revenge_sniper_id);
+        setSniperStartedAt(room.sniper_revenge_started_at);
+        setSniperVictimId(room.sniper_revenge_victim_id);
+        setSniperResultStartedAt(room.sniper_revenge_result_started_at);
 
         const { data: sessionData } = await supabase.auth.getSession();
         const { data: myPlayerRow } = await supabase
@@ -153,10 +165,10 @@ export default function RoleRevealPage() {
 
         const { data: playersData } = await supabase
           .from("players")
-          .select("id, name")
+          .select("id, name, is_alive")
           .eq("room_id", room.id)
           .eq("is_host", false);
-        setRoomPlayers((playersData as { id: string; name: string }[]) || []);
+        setRoomPlayers((playersData as { id: string; name: string; is_alive: boolean }[]) || []);
 
         const { data, error: rpcError } = await supabase.rpc("get_my_role", {
           p_room_id: room.id,
@@ -295,6 +307,25 @@ export default function RoleRevealPage() {
           if ("discussion_paused_at" in n) setDiscussionPausedAt(n.discussion_paused_at);
           if (typeof n.discussion_total_paused_seconds === "number")
             setDiscussionTotalPausedSeconds(n.discussion_total_paused_seconds);
+          if (typeof n.sniper_revenge_phase === "string") {
+            setSniperPhase(n.sniper_revenge_phase);
+            if (n.sniper_revenge_phase === "choosing") {
+              // نجيب حالة الأحياء الحالية بدقة لحظة بدء دور الانتقام
+              supabase
+                .from("players")
+                .select("id, name, is_alive")
+                .eq("room_id", roomId)
+                .eq("is_host", false)
+                .then(({ data }) => {
+                  if (data) setRoomPlayers(data as { id: string; name: string; is_alive: boolean }[]);
+                });
+            }
+          }
+          if ("sniper_revenge_sniper_id" in n) setSniperSniperId(n.sniper_revenge_sniper_id);
+          if ("sniper_revenge_started_at" in n) setSniperStartedAt(n.sniper_revenge_started_at);
+          if ("sniper_revenge_victim_id" in n) setSniperVictimId(n.sniper_revenge_victim_id);
+          if ("sniper_revenge_result_started_at" in n)
+            setSniperResultStartedAt(n.sniper_revenge_result_started_at);
         }
       )
       .subscribe();
@@ -380,6 +411,21 @@ export default function RoleRevealPage() {
           رجوع للغرفة
         </button>
       </main>
+    );
+  }
+
+  if ((sniperPhase === "choosing" || sniperPhase === "result") && roomId) {
+    return (
+      <LocalSniperRevengeScreen
+        roomCode={code}
+        phase={sniperPhase as "choosing" | "result"}
+        sniperId={sniperSniperId}
+        startedAt={sniperStartedAt}
+        victimId={sniperVictimId}
+        resultStartedAt={sniperResultStartedAt}
+        players={roomPlayers}
+        myPlayerId={myPlayerId}
+      />
     );
   }
 

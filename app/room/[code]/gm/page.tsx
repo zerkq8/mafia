@@ -8,6 +8,7 @@ import {
 } from "@/lib/supabase/client";
 import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
 import LocalVotingScreen from "@/components/LocalVotingScreen";
+import LocalSniperRevengeScreen from "@/components/LocalSniperRevengeScreen";
 
 interface RoomRow {
   id: string;
@@ -22,6 +23,11 @@ interface RoomRow {
   voting_result_started_at: string | null;
   voting_eliminated_player_id: string | null;
   voting_tie: boolean;
+  sniper_revenge_phase: string;
+  sniper_revenge_sniper_id: string | null;
+  sniper_revenge_started_at: string | null;
+  sniper_revenge_victim_id: string | null;
+  sniper_revenge_result_started_at: string | null;
 }
 
 interface PlayerWithRole {
@@ -56,7 +62,7 @@ export default function GmDashboardPage() {
       const { data: roomData, error: roomError } = await supabase
         .from("rooms")
         .select(
-          "id, code, status, round_number, host_auth_id, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie"
+          "id, code, status, round_number, host_auth_id, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie, sniper_revenge_phase, sniper_revenge_sniper_id, sniper_revenge_started_at, sniper_revenge_victim_id, sniper_revenge_result_started_at"
         )
         .eq("code", code)
         .maybeSingle();
@@ -194,6 +200,16 @@ export default function GmDashboardPage() {
       payload: { player_id: player.id, player_name: player.name },
       gm_only: true,
     });
+
+    if (willKill) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      await fetch("/api/rooms/sniper/trigger", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ roomCode: code, killedPlayerId: player.id }),
+      }).catch(() => {});
+    }
   }
 
   async function startVoting() {
@@ -271,6 +287,21 @@ export default function GmDashboardPage() {
   }
 
   const aliveCount = players.filter((p) => p.is_alive).length;
+
+  if (room.sniper_revenge_phase === "choosing" || room.sniper_revenge_phase === "result") {
+    return (
+      <LocalSniperRevengeScreen
+        roomCode={code}
+        phase={room.sniper_revenge_phase as "choosing" | "result"}
+        sniperId={room.sniper_revenge_sniper_id}
+        startedAt={room.sniper_revenge_started_at}
+        victimId={room.sniper_revenge_victim_id}
+        resultStartedAt={room.sniper_revenge_result_started_at}
+        players={players.map((p) => ({ id: p.id, name: p.name, is_alive: p.is_alive }))}
+        myPlayerId={null}
+      />
+    );
+  }
 
   if (room.voting_phase === "voting" || room.voting_phase === "result") {
     return (
