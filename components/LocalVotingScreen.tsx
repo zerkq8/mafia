@@ -179,29 +179,25 @@ export default function LocalVotingScreen({
                 opacity: clickable || isCurrent ? 1 : 0.85,
               }}
             >
-              <div className="relative flex-shrink-0">
-                <PlayerAvatar avatarIndex={avatarOf(id)} size={20} color={isCurrent ? "#C9A227" : "#8A93A6"} />
-                {voteCount > 0 && (
-                  <span
-                    className="absolute -top-1.5 -left-1.5 flex items-center justify-center rounded-full text-[9px] font-bold"
-                    style={{
-                      minWidth: 15,
-                      height: 15,
-                      padding: "0 3px",
-                      background: "#E05A4A",
-                      color: "#0B0E14",
-                    }}
-                  >
-                    {voteCount}
-                  </span>
-                )}
-              </div>
+              <PlayerAvatar avatarIndex={avatarOf(id)} size={20} color={isCurrent ? "#C9A227" : "#8A93A6"} />
               <span
                 className="text-sm flex-1 truncate"
                 style={{ color: isCurrent ? "#F5E7BE" : "#EDEAE0" }}
               >
                 {nameOf(id)}
               </span>
+              {voteCount > 0 && (
+                <span
+                  className="flex-shrink-0 rounded-full text-xs font-extrabold"
+                  style={{
+                    padding: "3px 9px",
+                    background: "#E05A4A",
+                    color: "#FFFFFF",
+                  }}
+                >
+                  +{voteCount}
+                </span>
+              )}
               {id === myPlayerId && (
                 <span className="text-[10px]" style={{ color: "#8A93A6" }}>
                   أنت
