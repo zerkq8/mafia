@@ -80,6 +80,7 @@ export default function RoleRevealPage() {
   // 0 = الستارة مغلقة تمامًا (الدور مخفي)، 1 = مفتوحة تمامًا (الدور ظاهر)
   const [curtain, setCurtain] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  const [sheenKey, setSheenKey] = useState(0);
   const dragging = useRef(false);
   const startX = useRef(0);
   const startCurtain = useRef(0);
@@ -205,7 +206,10 @@ export default function RoleRevealPage() {
   function closeCurtainNow() {
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     setCurtain(0);
-    setRevealed(false);
+    setRevealed((prev) => {
+      if (prev) setSheenKey((k) => k + 1);
+      return false;
+    });
     setShowTeam(false);
   }
 
@@ -365,17 +369,18 @@ export default function RoleRevealPage() {
     if (!dragging.current) return;
     dragging.current = false;
     setCurtain((c) => {
-      if (c >= 0.9) {
-        setRevealed(true);
-        if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      const committedOpen = c >= 0.9;
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+      setRevealed((prevRevealed) => {
+        if (committedOpen !== prevRevealed) setSheenKey((k) => k + 1);
+        return committedOpen;
+      });
+      if (committedOpen) {
         hideTimerRef.current = setTimeout(() => {
           closeCurtainNow();
         }, 3000);
-        return 1;
       }
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
-      setRevealed(false);
-      return 0;
+      return committedOpen ? 1 : 0;
     });
   }, []);
 
@@ -504,6 +509,8 @@ export default function RoleRevealPage() {
   const def = ROLES[role];
   const isMafiaTeam = team === "mafia";
   const curtainWidthPct = (1 - curtain) * 100;
+  // توهّج الظل يشتغل فقط أثناء السحب الفعلي بمنتصف الحركة، ويهدأ قريبًا من الطرفين
+  const isMidDrag = dragging.current && curtain > 0.08 && curtain < 0.92;
 
   return (
     <main
@@ -528,35 +535,51 @@ export default function RoleRevealPage() {
       <div className="flex-1 flex flex-col items-center justify-center px-6">
         <div
           ref={cardRef}
-          className="relative w-60 rounded-3xl overflow-hidden"
-          style={{
-            border: "1px solid #2A3342",
-            aspectRatio: "3 / 4",
-            boxShadow: "0 12px 40px -12px rgba(0,0,0,0.6)",
-            touchAction: "none",
-          }}
+          className="relative w-60"
+          style={{ aspectRatio: "3 / 4", touchAction: "none" }}
         >
-          {/* محتوى الدور — صورة واحدة كاملة (مشهد + اسم الدور مدموجين) بلا استثناء، حتى لا تدل الألوان على الفريق */}
-          <div className="absolute inset-0">
-            <img
-              src={`/roles/neutral/${role}.jpg`}
-              alt={`أنت ${def.nameAr}`}
-              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }}
-            />
-          </div>
-
-          {/* الستارة — غطاء محايد بنمط زخرفي فني، يسحبه اللاعب ليكشف البطاقة تدريجيًا */}
+          {/* ظل/توهج ديناميكي — يتعمّق ويتوهّج بذهبي خفيف بمنتصف السحب الفعلي بس (خارج القص عشان ما ينقصّ) */}
           <div
-            className="absolute inset-y-0 left-0 overflow-hidden"
+            className="absolute pointer-events-none"
             style={{
-              width: `${curtainWidthPct}%`,
-              background:
-                "radial-gradient(ellipse at 50% 40%, #141B26 0%, #0B0E14 75%)",
-              transition: dragging.current ? "none" : "width 0.25s ease",
-              borderLeft: curtainWidthPct > 0 && curtainWidthPct < 100 ? "1px solid #EDEAE022" : "none",
+              inset: -6,
+              borderRadius: 30,
+              boxShadow: isMidDrag
+                ? "0 30px 70px -8px rgba(0,0,0,0.9), 0 0 40px -6px rgba(201,162,39,0.25)"
+                : "0 12px 40px -12px rgba(0,0,0,0.6)",
+              transition: "box-shadow 0.62s cubic-bezier(.34,1.15,.35,1)",
             }}
+          />
+
+          <div
+            className="absolute inset-0 rounded-3xl overflow-hidden"
+            style={{ border: "1px solid #2A3342" }}
           >
-            <CardBackArt />
+            {/* محتوى الدور — صورة واحدة كاملة (مشهد + اسم الدور مدموجين) بلا استثناء، حتى لا تدل الألوان على الفريق */}
+            <div className="absolute inset-0">
+              <img
+                src={`/roles/neutral/${role}.jpg`}
+                alt={`أنت ${def.nameAr}`}
+                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }}
+              />
+            </div>
+
+            {/* الستارة — غطاء محايد بنمط زخرفي فني، يسحبه اللاعب ليكشف البطاقة تدريجيًا */}
+            <div
+              className="absolute inset-y-0 left-0 overflow-hidden"
+              style={{
+                width: `${curtainWidthPct}%`,
+                background:
+                  "radial-gradient(ellipse at 50% 40%, #141B26 0%, #0B0E14 75%)",
+                transition: dragging.current ? "none" : "width 0.62s cubic-bezier(.34,1.15,.35,1)",
+                borderLeft: curtainWidthPct > 0 && curtainWidthPct < 100 ? "1px solid #EDEAE022" : "none",
+              }}
+            >
+              <CardBackArt />
+            </div>
+
+            {/* لمعة تمر عبر الوجه لحظة اكتمال أي كشف/إخفاء حقيقي — تُعاد بكل مرة عبر sheenKey */}
+            <div key={sheenKey} className="sheen-sweep" />
           </div>
 
           {/* المقبض — العنصر الوحيد القابل للسحب، خفيف وغير لافت */}
@@ -567,7 +590,7 @@ export default function RoleRevealPage() {
             style={{
               left: `clamp(14px, ${curtainWidthPct}%, calc(100% - 14px))`,
               transform: "translate(-50%, -50%)",
-              transition: dragging.current ? "none" : "left 0.25s ease",
+              transition: dragging.current ? "none" : "left 0.62s cubic-bezier(.34,1.15,.35,1)",
               touchAction: "none",
             }}
           >
