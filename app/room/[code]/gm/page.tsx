@@ -9,6 +9,7 @@ import {
 import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
 import LocalVotingScreen from "@/components/LocalVotingScreen";
 import LocalSniperRevengeScreen from "@/components/LocalSniperRevengeScreen";
+import LocalGameOverScreen from "@/components/LocalGameOverScreen";
 
 interface RoomRow {
   id: string;
@@ -28,6 +29,7 @@ interface RoomRow {
   sniper_revenge_started_at: string | null;
   sniper_revenge_victim_id: string | null;
   sniper_revenge_result_started_at: string | null;
+  winner: string | null;
 }
 
 interface PlayerWithRole {
@@ -64,7 +66,7 @@ export default function GmDashboardPage() {
       const { data: roomData, error: roomError } = await supabase
         .from("rooms")
         .select(
-          "id, code, status, round_number, host_auth_id, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie, sniper_revenge_phase, sniper_revenge_sniper_id, sniper_revenge_started_at, sniper_revenge_victim_id, sniper_revenge_result_started_at"
+          "id, code, status, round_number, host_auth_id, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie, sniper_revenge_phase, sniper_revenge_sniper_id, sniper_revenge_started_at, sniper_revenge_victim_id, sniper_revenge_result_started_at, winner"
         )
         .eq("code", code)
         .maybeSingle();
@@ -206,11 +208,24 @@ export default function GmDashboardPage() {
     if (willKill) {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
-      await fetch("/api/rooms/sniper/trigger", {
+      const headers = { "Content-Type": "application/json", Authorization: `Bearer ${token}` };
+      const triggerRes = await fetch("/api/rooms/sniper/trigger", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers,
         body: JSON.stringify({ roomCode: code, killedPlayerId: player.id }),
-      }).catch(() => {});
+      })
+        .then((r) => r.json())
+        .catch(() => null);
+
+      // لو ما كان قناصًا (أو تعذّر التشغيل)، افحص شروط الفوز فورًا —
+      // لو كان قناصًا، دور الانتقام نفسه يفحص الفوز بعد ما يخلص بالكامل
+      if (!triggerRes?.triggered) {
+        await fetch("/api/rooms/check-win", {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ roomCode: code }),
+        }).catch(() => {});
+      }
     }
   }
 
@@ -303,6 +318,10 @@ export default function GmDashboardPage() {
         myPlayerId={null}
       />
     );
+  }
+
+  if (room.winner === "mafia" || room.winner === "civilians") {
+    return <LocalGameOverScreen winner={room.winner as "mafia" | "civilians"} />;
   }
 
   if (room.voting_phase === "voting" || room.voting_phase === "result") {

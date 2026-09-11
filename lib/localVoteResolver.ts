@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { maybeTriggerSniperRevenge } from "@/lib/sniperRevenge";
+import { checkAndApplyWinCondition } from "@/lib/localWinCheck";
 
 /**
  * يحسم تصويت الوضع المحلي: يحسب أكثر لاعب أخذ أصوات، يطبّق الإخراج
@@ -66,8 +67,17 @@ export async function resolveLocalVote(admin: SupabaseClient, room: any) {
     .eq("voting_index", room.voting_index);
 
   // لو المطرود قناص، شغّل دور الانتقام — شاشته تأخذ أولوية العرض فوق نتيجة التصويت
+  // وتفحص الفوز بنفسها بعد ما يخلص الانتقام بالكامل (مو الآن). غير كذا، افحص الفوز فورًا.
   if (eliminated) {
-    await maybeTriggerSniperRevenge(admin, room.id, room.round_number, eliminated);
+    const sniperTriggered = await maybeTriggerSniperRevenge(
+      admin,
+      room.id,
+      room.round_number,
+      eliminated
+    );
+    if (!sniperTriggered) {
+      await checkAndApplyWinCondition(admin, room.id, room.round_number);
+    }
   }
 
   return { eliminated, tie };

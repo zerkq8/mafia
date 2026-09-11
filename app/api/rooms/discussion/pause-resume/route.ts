@@ -24,21 +24,25 @@ export async function POST(req: Request) {
 
     if (room.discussion_paused_at) {
       // استئناف: أضف مدة التوقف للإجمالي التراكمي
-      const pausedSeconds =
-        (Date.now() - new Date(room.discussion_paused_at).getTime()) / 1000;
-      await admin
+      // ⚠️ العمود integer — لازم رقم صحيح، وإلا يفشل التحديث بصمت ويضل paused_at عالق للأبد
+      const pausedSeconds = Math.round(
+        (Date.now() - new Date(room.discussion_paused_at).getTime()) / 1000
+      );
+      const { error: resumeError } = await admin
         .from("rooms")
         .update({
           discussion_paused_at: null,
           discussion_total_paused_seconds: room.discussion_total_paused_seconds + pausedSeconds,
         })
         .eq("id", room.id);
+      if (resumeError) throw resumeError;
     } else {
       // إيقاف
-      await admin
+      const { error: pauseError } = await admin
         .from("rooms")
         .update({ discussion_paused_at: new Date().toISOString() })
         .eq("id", room.id);
+      if (pauseError) throw pauseError;
     }
 
     return NextResponse.json({ success: true });

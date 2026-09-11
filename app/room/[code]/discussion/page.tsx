@@ -8,6 +8,7 @@ import {
 } from "@/lib/supabase/client";
 import LocalDiscussionScreen from "@/components/LocalDiscussionScreen";
 import LocalSniperRevengeScreen from "@/components/LocalSniperRevengeScreen";
+import LocalGameOverScreen from "@/components/LocalGameOverScreen";
 
 interface RoomRow {
   id: string;
@@ -25,6 +26,7 @@ interface RoomRow {
   sniper_revenge_started_at: string | null;
   sniper_revenge_victim_id: string | null;
   sniper_revenge_result_started_at: string | null;
+  winner: string | null;
 }
 
 interface PlayerRow {
@@ -54,7 +56,7 @@ export default function DiscussionPage() {
       const { data: roomData, error: roomError } = await supabase
         .from("rooms")
         .select(
-          "id, round_number, host_auth_id, discussion_phase, discussion_order, discussion_index, discussion_turn_started_at, discussion_paused_at, discussion_total_paused_seconds, discussion_selected_players"
+          "id, round_number, host_auth_id, discussion_phase, discussion_order, discussion_index, discussion_turn_started_at, discussion_paused_at, discussion_total_paused_seconds, discussion_selected_players, sniper_revenge_phase, sniper_revenge_sniper_id, sniper_revenge_started_at, sniper_revenge_victim_id, sniper_revenge_result_started_at, winner"
         )
         .eq("code", code)
         .maybeSingle();
@@ -190,6 +192,10 @@ export default function DiscussionPage() {
         myPlayerId={null}
       />
     );
+  }
+
+  if (room.winner === "mafia" || room.winner === "civilians") {
+    return <LocalGameOverScreen winner={room.winner as "mafia" | "civilians"} />;
   }
 
   if (room.discussion_phase !== "idle") {

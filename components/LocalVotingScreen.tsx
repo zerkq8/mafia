@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { NeutralPersonIcon } from "@/components/icons/RoleIcon";
 
-const TURN_SECONDS = 10;
+const TURN_SECONDS = 12;
 
 interface VoteRow {
   id: string;

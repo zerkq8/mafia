@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdminClient, getAuthIdFromRequest } from "@/lib/supabase/admin";
 import { resolveLocalVote } from "@/lib/localVoteResolver";
 
-const TURN_SECONDS = 10;
+const TURN_SECONDS = 12;
 
 /**
  * يُستدعى من أي عميل متصل (كل اللاعبين + الحكم يسحّبونه بشكل دوري)

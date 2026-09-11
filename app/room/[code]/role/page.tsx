@@ -11,6 +11,7 @@ import RoleIcon from "@/components/icons/RoleIcon";
 import LocalVotingScreen from "@/components/LocalVotingScreen";
 import LocalDiscussionScreen from "@/components/LocalDiscussionScreen";
 import LocalSniperRevengeScreen from "@/components/LocalSniperRevengeScreen";
+import LocalGameOverScreen from "@/components/LocalGameOverScreen";
 
 /** رسمة ظهر البطاقة — نمط زخرفي محايد بحت (أبيض/أسود) قبل الكشف */
 function CardBackArt() {
@@ -69,6 +70,7 @@ export default function RoleRevealPage() {
 
   const [roomId, setRoomId] = useState<string | null>(null);
   const [myPlayerId, setMyPlayerId] = useState<string | null>(null);
+  const [myName, setMyName] = useState("");
   const [isAlive, setIsAlive] = useState(true);
   const [role, setRole] = useState<RoleKey | null>(null);
   const [team, setTeam] = useState<TeamKey | null>(null);
@@ -110,6 +112,7 @@ export default function RoleRevealPage() {
   const [sniperStartedAt, setSniperStartedAt] = useState<string | null>(null);
   const [sniperVictimId, setSniperVictimId] = useState<string | null>(null);
   const [sniperResultStartedAt, setSniperResultStartedAt] = useState<string | null>(null);
+  const [winner, setWinner] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -120,7 +123,7 @@ export default function RoleRevealPage() {
         const { data: room, error: roomError } = await supabase
           .from("rooms")
           .select(
-            "id, round_number, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie, discussion_phase, discussion_order, discussion_index, discussion_turn_started_at, discussion_paused_at, discussion_total_paused_seconds, sniper_revenge_phase, sniper_revenge_sniper_id, sniper_revenge_started_at, sniper_revenge_victim_id, sniper_revenge_result_started_at"
+            "id, round_number, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie, discussion_phase, discussion_order, discussion_index, discussion_turn_started_at, discussion_paused_at, discussion_total_paused_seconds, sniper_revenge_phase, sniper_revenge_sniper_id, sniper_revenge_started_at, sniper_revenge_victim_id, sniper_revenge_result_started_at, winner"
           )
           .eq("code", code)
           .maybeSingle();
@@ -150,16 +153,18 @@ export default function RoleRevealPage() {
         setSniperStartedAt(room.sniper_revenge_started_at);
         setSniperVictimId(room.sniper_revenge_victim_id);
         setSniperResultStartedAt(room.sniper_revenge_result_started_at);
+        setWinner(room.winner);
 
         const { data: sessionData } = await supabase.auth.getSession();
         const { data: myPlayerRow } = await supabase
           .from("players")
-          .select("id, is_alive")
+          .select("id, name, is_alive")
           .eq("room_id", room.id)
           .eq("auth_id", sessionData.session?.user.id)
           .maybeSingle();
         if (myPlayerRow) {
           setMyPlayerId(myPlayerRow.id);
+          setMyName(myPlayerRow.name);
           setIsAlive(myPlayerRow.is_alive);
         }
 
@@ -326,6 +331,7 @@ export default function RoleRevealPage() {
           if ("sniper_revenge_victim_id" in n) setSniperVictimId(n.sniper_revenge_victim_id);
           if ("sniper_revenge_result_started_at" in n)
             setSniperResultStartedAt(n.sniper_revenge_result_started_at);
+          if ("winner" in n) setWinner(n.winner);
         }
       )
       .subscribe();
@@ -429,6 +435,10 @@ export default function RoleRevealPage() {
     );
   }
 
+  if (winner === "mafia" || winner === "civilians") {
+    return <LocalGameOverScreen winner={winner} />;
+  }
+
   if (!isAlive) {
     return (
       <main
@@ -503,6 +513,9 @@ export default function RoleRevealPage() {
           تم توزيع دورك
         </div>
         <div className="font-display text-2xl" style={{ color: "#EDEAE0" }}>بطاقتك</div>
+        {myName && (
+          <div className="text-sm mt-1" style={{ color: "#C9A227" }}>{myName}</div>
+        )}
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6">

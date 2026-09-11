@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { checkAndApplyWinCondition } from "@/lib/localWinCheck";
 
 export const SNIPER_REVENGE_SECONDS = 20;
 export const SNIPER_RESULT_SECONDS = 6;
@@ -79,4 +80,8 @@ export async function resolveSniperRevenge(
     })
     .eq("id", room.id)
     .eq("sniper_revenge_phase", "choosing");
+
+  // فحص الفوز بعد اكتمال دور الانتقام بالكامل (موت القناص + ضحيته لو وُجدت) —
+  // مو فور موت القناص نفسه، وبغض النظر عن مصدر موته (ليلي أو تصويت)
+  await checkAndApplyWinCondition(admin, room.id, room.round_number);
 }
