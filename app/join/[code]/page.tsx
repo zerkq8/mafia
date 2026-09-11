@@ -41,35 +41,40 @@ export default function JoinPage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-6 py-4">
-      <h1 className="font-display text-4xl text-gold mb-2">لعبة المافيا</h1>
-      <div className="w-32 h-px bg-gold/40 mb-8" />
+    <main
+      className="min-h-screen flex flex-col items-center justify-center px-6 py-4"
+      style={{ background: "#0B0E14" }}
+    >
+      <h1 className="font-display text-4xl mb-2" style={{ color: "#C9A227" }}>لعبة المافيا</h1>
+      <div className="w-32 h-px mb-8" style={{ background: "#C9A22766" }} />
 
       <div className="w-full max-w-xs flex flex-col gap-4">
         <div className="text-center mb-2">
-          <p className="text-xs text-muted mb-1">تمت دعوتك لغرفة</p>
-          <p dir="ltr" className="text-2xl font-display text-gold tracking-widest">
+          <p className="text-xs mb-1" style={{ color: "#8A93A6" }}>تمت دعوتك لغرفة</p>
+          <p dir="ltr" className="text-2xl font-display tracking-widest" style={{ color: "#C9A227" }}>
             {code}
           </p>
         </div>
 
         <div>
-          <label className="block text-xs text-muted mb-1">أدخل اسمك</label>
+          <label className="block text-xs mb-1" style={{ color: "#8A93A6" }}>أدخل اسمك</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={20}
-            className="w-full rounded-xl px-4 py-3 text-sm bg-panel border border-border outline-none focus:border-gold"
+            className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+            style={{ background: "#141B26", border: "1px solid #2A3342", color: "#EDEAE0" }}
             placeholder="مثال: محمد"
           />
         </div>
 
-        {error && <p className="text-mafia text-xs text-center">{error}</p>}
+        {error && <p className="text-xs text-center" style={{ color: "#E05A4A" }}>{error}</p>}
 
         <button
           disabled={loading || name.trim().length < 2}
           onClick={handleJoin}
-          className="rounded-xl py-3 font-bold bg-gold text-ink disabled:opacity-50"
+          className="rounded-xl py-3 font-bold disabled:opacity-50"
+          style={{ background: "#C9A227", color: "#0B0E14" }}
         >
           {loading ? "جارٍ الدخول..." : "دخول الغرفة"}
         </button>

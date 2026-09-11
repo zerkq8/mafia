@@ -9,6 +9,7 @@ import {
 import { ROLES, RoleKey, TeamKey } from "@/lib/roles";
 import RoleIcon from "@/components/icons/RoleIcon";
 import LocalVotingScreen from "@/components/LocalVotingScreen";
+import LocalDiscussionScreen from "@/components/LocalDiscussionScreen";
 
 /** رسمة ظهر البطاقة — نمط زخرفي محايد بحت (أبيض/أسود) قبل الكشف */
 function CardBackArt() {
@@ -96,6 +97,13 @@ export default function RoleRevealPage() {
   const [roundNumber, setRoundNumber] = useState(1);
   const [roomPlayers, setRoomPlayers] = useState<{ id: string; name: string }[]>([]);
 
+  const [discussionPhase, setDiscussionPhase] = useState("idle");
+  const [discussionOrder, setDiscussionOrder] = useState<string[]>([]);
+  const [discussionIndex, setDiscussionIndex] = useState(-1);
+  const [discussionTurnStartedAt, setDiscussionTurnStartedAt] = useState<string | null>(null);
+  const [discussionPausedAt, setDiscussionPausedAt] = useState<string | null>(null);
+  const [discussionTotalPausedSeconds, setDiscussionTotalPausedSeconds] = useState(0);
+
   useEffect(() => {
     (async () => {
       try {
@@ -105,7 +113,7 @@ export default function RoleRevealPage() {
         const { data: room, error: roomError } = await supabase
           .from("rooms")
           .select(
-            "id, round_number, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie"
+            "id, round_number, voting_phase, voting_order, voting_index, voting_turn_started_at, voting_result_started_at, voting_eliminated_player_id, voting_tie, discussion_phase, discussion_order, discussion_index, discussion_turn_started_at, discussion_paused_at, discussion_total_paused_seconds"
           )
           .eq("code", code)
           .maybeSingle();
@@ -124,6 +132,12 @@ export default function RoleRevealPage() {
         setVotingResultStartedAt(room.voting_result_started_at);
         setVotingEliminatedPlayerId(room.voting_eliminated_player_id);
         setVotingTie(room.voting_tie);
+        setDiscussionPhase(room.discussion_phase);
+        setDiscussionOrder(room.discussion_order || []);
+        setDiscussionIndex(room.discussion_index);
+        setDiscussionTurnStartedAt(room.discussion_turn_started_at);
+        setDiscussionPausedAt(room.discussion_paused_at);
+        setDiscussionTotalPausedSeconds(room.discussion_total_paused_seconds);
 
         const { data: sessionData } = await supabase.auth.getSession();
         const { data: myPlayerRow } = await supabase
@@ -273,6 +287,14 @@ export default function RoleRevealPage() {
             setVotingEliminatedPlayerId(n.voting_eliminated_player_id);
           if (typeof n.voting_tie === "boolean") setVotingTie(n.voting_tie);
           if (typeof n.round_number === "number") setRoundNumber(n.round_number);
+          if (typeof n.discussion_phase === "string") setDiscussionPhase(n.discussion_phase);
+          if (Array.isArray(n.discussion_order)) setDiscussionOrder(n.discussion_order);
+          if (typeof n.discussion_index === "number") setDiscussionIndex(n.discussion_index);
+          if ("discussion_turn_started_at" in n)
+            setDiscussionTurnStartedAt(n.discussion_turn_started_at);
+          if ("discussion_paused_at" in n) setDiscussionPausedAt(n.discussion_paused_at);
+          if (typeof n.discussion_total_paused_seconds === "number")
+            setDiscussionTotalPausedSeconds(n.discussion_total_paused_seconds);
         }
       )
       .subscribe();
@@ -334,7 +356,10 @@ export default function RoleRevealPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-muted text-sm">
+      <main
+        className="min-h-screen flex items-center justify-center text-sm"
+        style={{ background: "#0B0E14", color: "#8A93A6" }}
+      >
         جارٍ التحميل...
       </main>
     );
@@ -342,11 +367,15 @@ export default function RoleRevealPage() {
 
   if (error || !role) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-6 gap-4">
-        <p className="text-mafia text-sm text-center">{error}</p>
+      <main
+        className="min-h-screen flex flex-col items-center justify-center px-6 gap-4"
+        style={{ background: "#0B0E14" }}
+      >
+        <p className="text-sm text-center" style={{ color: "#E05A4A" }}>{error}</p>
         <button
           onClick={() => router.push(`/room/${code}`)}
-          className="text-xs text-gold border border-gold rounded-full px-4 py-2"
+          className="text-xs rounded-full px-4 py-2 border"
+          style={{ color: "#C9A227", borderColor: "#C9A227" }}
         >
           رجوع للغرفة
         </button>
@@ -358,7 +387,7 @@ export default function RoleRevealPage() {
     return (
       <main
         className="min-h-screen flex flex-col items-center justify-center px-6 gap-3"
-        style={{ background: "#0A0000" }}
+        style={{ background: "#0B0E14" }}
       >
         <div className="text-5xl mb-2">💀</div>
         <p className="text-2xl font-extrabold" style={{ color: "#E05A4A" }}>
@@ -390,6 +419,25 @@ export default function RoleRevealPage() {
     );
   }
 
+  if (discussionPhase !== "idle" && roomId) {
+    return (
+      <LocalDiscussionScreen
+        roomId={roomId}
+        roomCode={code}
+        roundNumber={roundNumber}
+        phase={discussionPhase as "a" | "b" | "c"}
+        order={discussionOrder}
+        index={discussionIndex}
+        turnStartedAt={discussionTurnStartedAt}
+        pausedAt={discussionPausedAt}
+        totalPausedSeconds={discussionTotalPausedSeconds}
+        players={roomPlayers}
+        myPlayerId={myPlayerId}
+        isHost={false}
+      />
+    );
+  }
+
   const def = ROLES[role];
   const isMafiaTeam = team === "mafia";
   const curtainWidthPct = (1 - curtain) * 100;
@@ -397,6 +445,7 @@ export default function RoleRevealPage() {
   return (
     <main
       className="min-h-screen flex flex-col select-none"
+      style={{ background: "#0B0E14" }}
       onMouseMove={onMove}
       onMouseUp={onUp}
       onMouseLeave={onUp}
@@ -404,10 +453,10 @@ export default function RoleRevealPage() {
       onTouchEnd={onUp}
     >
       <div className="px-5 pt-8 pb-3 text-center">
-        <div className="text-[11px] tracking-[0.3em] text-muted mb-1">
+        <div className="text-[11px] tracking-[0.3em] mb-1" style={{ color: "#8A93A6" }}>
           تم توزيع دورك
         </div>
-        <div className="font-display text-2xl text-cream">بطاقتك</div>
+        <div className="font-display text-2xl" style={{ color: "#EDEAE0" }}>بطاقتك</div>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center px-6">
@@ -415,35 +464,19 @@ export default function RoleRevealPage() {
           ref={cardRef}
           className="relative w-60 rounded-3xl overflow-hidden"
           style={{
-            border: "1px solid #2E2E2E",
+            border: "1px solid #2A3342",
             aspectRatio: "3 / 4",
             boxShadow: "0 12px 40px -12px rgba(0,0,0,0.6)",
             touchAction: "none",
           }}
         >
-          {/* محتوى الدور — أبيض/أسود بحت لكل الأدوار بلا استثناء، حتى لا تدل الألوان على الفريق */}
-          <div
-            className="absolute inset-0 flex items-center justify-center"
-            style={{
-              background:
-                "radial-gradient(ellipse at 50% 30%, #1C1C1C 0%, #0A0A0A 70%)",
-            }}
-          >
-            <div className="flex flex-col items-center gap-3 px-5 text-center">
-              <img
-                src={`/roles/neutral/${role}.png`}
-                alt=""
-                width={64}
-                height={64}
-                style={{ objectFit: "contain" }}
-              />
-              <div className="text-lg font-extrabold" style={{ color: "#FFFFFF" }}>
-                أنت {def.nameAr}
-              </div>
-              <div className="text-xs leading-relaxed max-w-[11rem]" style={{ color: "#AAAAAA" }}>
-                {def.shortDescAr}
-              </div>
-            </div>
+          {/* محتوى الدور — صورة واحدة كاملة (مشهد + اسم الدور مدموجين) بلا استثناء، حتى لا تدل الألوان على الفريق */}
+          <div className="absolute inset-0">
+            <img
+              src={`/roles/neutral/${role}.jpg`}
+              alt={`أنت ${def.nameAr}`}
+              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }}
+            />
           </div>
 
           {/* الستارة — غطاء محايد بنمط زخرفي فني، يسحبه اللاعب ليكشف البطاقة تدريجيًا */}
@@ -452,9 +485,9 @@ export default function RoleRevealPage() {
             style={{
               width: `${curtainWidthPct}%`,
               background:
-                "radial-gradient(ellipse at 50% 40%, #1A1A1A 0%, #050505 75%)",
+                "radial-gradient(ellipse at 50% 40%, #141B26 0%, #0B0E14 75%)",
               transition: dragging.current ? "none" : "width 0.25s ease",
-              borderLeft: curtainWidthPct > 0 && curtainWidthPct < 100 ? "1px solid #FFFFFF22" : "none",
+              borderLeft: curtainWidthPct > 0 && curtainWidthPct < 100 ? "1px solid #EDEAE022" : "none",
             }}
           >
             <CardBackArt />
@@ -474,14 +507,20 @@ export default function RoleRevealPage() {
           >
             <div
               className="w-7 h-11 rounded-full flex items-center justify-center"
-              style={{ background: "#FFFFFF", boxShadow: "0 2px 8px #00000088" }}
+              style={{ background: "#EDEAE0", boxShadow: "0 2px 8px #00000088" }}
             >
-              <span style={{ color: "#000000", fontSize: 10 }}>⇔</span>
+              <span style={{ color: "#0B0E14", fontSize: 10 }}>⇔</span>
             </div>
           </div>
         </div>
 
-        <p className="text-[11px] text-muted mt-4 text-center max-w-xs">
+        {revealed && (
+          <p className="text-xs leading-relaxed max-w-xs text-center mt-3" style={{ color: "#8A93A6" }}>
+            {def.shortDescAr}
+          </p>
+        )}
+
+        <p className="text-[11px] mt-4 text-center max-w-xs" style={{ color: "#8A93A6" }}>
           {revealed
             ? "اسحب المقبض مرة ثانية لإخفاء دورك فورًا"
             : "اسحب المقبض بخفة لكشف دورك"}
@@ -493,8 +532,8 @@ export default function RoleRevealPage() {
           className="w-full max-w-xs rounded-full py-3 text-sm font-bold mt-4"
           style={{
             background: "transparent",
-            border: "1px solid #333333",
-            color: "#AAAAAA",
+            border: "1px solid #2A3342",
+            color: "#8A93A6",
           }}
         >
           إخفاء الكرت
@@ -504,7 +543,7 @@ export default function RoleRevealPage() {
           <button
             onClick={loadTeam}
             className="w-full max-w-xs rounded-full py-3 text-sm font-bold mt-2"
-            style={{ background: "#FFFFFF", color: "#000000" }}
+            style={{ background: "#EDEAE0", color: "#0B0E14" }}
           >
             أعضاء فريقك
           </button>
@@ -513,13 +552,13 @@ export default function RoleRevealPage() {
         {showTeam && (
           <div
             className="w-full max-w-xs mt-4 rounded-xl p-4"
-            style={{ background: "#0A0A0A", border: "1px solid #333333" }}
+            style={{ background: "#0B0E14", border: "1px solid #2A3342" }}
           >
-            <div className="text-xs mb-2 font-bold" style={{ color: "#FFFFFF" }}>
+            <div className="text-xs mb-2 font-bold" style={{ color: "#EDEAE0" }}>
               أعضاء فريقك
             </div>
             {teamLoading ? (
-              <p className="text-xs text-muted">جارٍ التحميل...</p>
+              <p className="text-xs" style={{ color: "#8A93A6" }}>جارٍ التحميل...</p>
             ) : (
               <div className="flex flex-col gap-1.5">
                 {teamMembers.map((m) => (
@@ -527,8 +566,8 @@ export default function RoleRevealPage() {
                     key={m.player_id}
                     className="flex items-center justify-between text-sm"
                   >
-                    <span style={{ color: "#FFFFFF" }}>{m.name}</span>
-                    <span className="text-[11px]" style={{ color: "#888888" }}>
+                    <span style={{ color: "#EDEAE0" }}>{m.name}</span>
+                    <span className="text-[11px]" style={{ color: "#8A93A6" }}>
                       {ROLES[m.role].nameAr}
                     </span>
                   </div>

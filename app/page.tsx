@@ -166,7 +166,10 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen flex flex-col items-center px-0 py-0">
+    <main
+      className="min-h-screen flex flex-col items-center px-0 py-0"
+      style={{ background: "#0B0E14" }}
+    >
       <div className="w-full max-w-md relative">
         <img
           src="/hero/majlis-hero.jpg"
@@ -177,8 +180,8 @@ export default function HomePage() {
       </div>
 
       <div className="flex flex-col items-center px-6 py-5 flex-1 w-full">
-      <h1 className="font-display text-5xl text-gold mb-2 mt-2">لعبة المافيا</h1>
-      <div className="w-40 h-px bg-gold/40 mb-6" />
+      <h1 className="font-display text-5xl mb-2 mt-2" style={{ color: "#C9A227" }}>لعبة المافيا</h1>
+      <div className="w-40 h-px mb-6" style={{ background: "#C9A22766" }} />
 
       {mode === "idle" && (
         <div className="flex items-end justify-center gap-1.5 mb-8 flex-wrap max-w-sm">
@@ -210,7 +213,7 @@ export default function HomePage() {
                     className="sparkle text-xs"
                     style={
                       {
-                        color: "#B6963F",
+                        color: "#C9A227",
                         left: "50%",
                         top: "50%",
                         "--sx": `${[18, -18, 14, -14][i]}px`,
@@ -224,9 +227,9 @@ export default function HomePage() {
               <div
                 className="rounded-full overflow-hidden flex items-center justify-center w-full h-full"
                 style={{
-                  background: "#FDFBF6",
-                  border: "2px solid #DED4B8",
-                  boxShadow: "0 4px 10px -4px rgba(0,0,0,0.15)",
+                  background: "#141B26",
+                  border: "2px solid #2A3342",
+                  boxShadow: "0 4px 10px -4px rgba(0,0,0,0.35)",
                 }}
               >
                 <img
@@ -248,27 +251,29 @@ export default function HomePage() {
             <button
               onClick={goToMyRoom}
               className="rounded-xl py-3 font-bold"
-              style={{ background: "#5C8E7B", color: "#FDFBF6" }}
+              style={{ background: "#C9A227", color: "#0B0E14" }}
             >
               🔄 الرجوع لغرفتك النشطة
             </button>
           )}
           <button
             onClick={() => setMode("create")}
-            className="rounded-xl py-3 font-bold bg-gold text-ink"
+            className="rounded-xl py-3 font-bold"
+            style={{ background: "#C9A227", color: "#0B0E14" }}
           >
             إنشاء غرفة
           </button>
           <button
             onClick={() => setMode("join")}
-            className="rounded-xl py-3 font-bold border border-gold text-gold"
+            className="rounded-xl py-3 font-bold border"
+            style={{ borderColor: "#C9A227", color: "#C9A227" }}
           >
             دخول غرفة
           </button>
           <button
             onClick={() => router.push("/online")}
             className="rounded-xl py-3 font-bold"
-            style={{ background: "transparent", border: "1px solid #8B7F68", color: "#8B7F68" }}
+            style={{ background: "transparent", border: "1px solid #8A93A6", color: "#8A93A6" }}
           >
             🌐 أونلاين
           </button>
@@ -278,12 +283,13 @@ export default function HomePage() {
       {mode !== "idle" && (
         <div className="w-full max-w-sm flex flex-col gap-4">
           <div>
-            <label className="block text-xs text-muted mb-1">أدخل اسمك</label>
+            <label className="block text-xs mb-1" style={{ color: "#8A93A6" }}>أدخل اسمك</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={20}
-              className="w-full rounded-xl px-4 py-3 text-sm bg-panel border border-border outline-none focus:border-gold"
+              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+              style={{ background: "#141B26", border: "1px solid #2A3342", color: "#EDEAE0" }}
               placeholder="مثال: محمد"
             />
           </div>
@@ -291,7 +297,7 @@ export default function HomePage() {
           {mode === "create" && (
             <>
               <div>
-                <label className="block text-xs text-muted mb-1">
+                <label className="block text-xs mb-1" style={{ color: "#8A93A6" }}>
                   عدد اللاعبين: {playerCount}
                 </label>
                 <input
@@ -300,12 +306,13 @@ export default function HomePage() {
                   max={30}
                   value={playerCount}
                   onChange={(e) => setPlayerCount(Number(e.target.value))}
-                  className="w-full accent-gold"
+                  className="w-full"
+                  style={{ accentColor: "#C9A227" }}
                 />
               </div>
 
-              <div className="rounded-xl p-3 bg-panel border border-border">
-                <div className="text-xs text-muted mb-3">توزيع الأدوار</div>
+              <div className="rounded-xl p-3" style={{ background: "#141B26", border: "1px solid #2A3342" }}>
+                <div className="text-xs mb-3" style={{ color: "#8A93A6" }}>توزيع الأدوار</div>
                 <div className="flex flex-col gap-2">
                   {CONFIGURABLE_ROLES.map((roleKey) => {
                     const def = ROLES[roleKey];
@@ -317,21 +324,21 @@ export default function HomePage() {
                       >
                         <span className="text-sm flex items-center gap-1.5">
                           <span>{def.emoji}</span>
-                          <span style={{ color: "#2B2117" }}>{def.nameAr}</span>
+                          <span style={{ color: "#EDEAE0" }}>{def.nameAr}</span>
                         </span>
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
                             onClick={() => updateRoleCount(roleKey, -1)}
                             className="w-7 h-7 rounded-full text-sm"
-                            style={{ background: "#F3ECDC", color: "#8B7F68" }}
+                            style={{ background: "#1E2733", color: "#8A93A6" }}
                           >
                             −
                           </button>
                           <span
                             dir="ltr"
                             className="w-4 text-center text-sm font-bold"
-                            style={{ color: "#B6963F" }}
+                            style={{ color: "#C9A227" }}
                           >
                             {roleCounts[key]}
                           </span>
@@ -339,7 +346,7 @@ export default function HomePage() {
                             type="button"
                             onClick={() => updateRoleCount(roleKey, 1)}
                             className="w-7 h-7 rounded-full text-sm"
-                            style={{ background: "#F3ECDC", color: "#8B7F68" }}
+                            style={{ background: "#1E2733", color: "#8A93A6" }}
                           >
                             +
                           </button>
@@ -348,15 +355,15 @@ export default function HomePage() {
                     );
                   })}
 
-                  <div className="flex items-center justify-between pt-2 mt-1 border-t border-border">
+                  <div className="flex items-center justify-between pt-2 mt-1" style={{ borderTop: "1px solid #2A3342" }}>
                     <span className="text-sm flex items-center gap-1.5">
                       <span>👥</span>
-                      <span style={{ color: "#2B2117" }}>الشعب</span>
+                      <span style={{ color: "#EDEAE0" }}>الشعب</span>
                     </span>
                     <span
                       dir="ltr"
                       className="text-sm font-bold"
-                      style={{ color: civilianCount < 0 ? "#B2564C" : "#5C8E7B" }}
+                      style={{ color: civilianCount < 0 ? "#E05A4A" : "#3FA37A" }}
                     >
                       {civilianCount}
                     </span>
@@ -364,7 +371,7 @@ export default function HomePage() {
                 </div>
 
                 {!validation.valid && (
-                  <p className="text-mafia text-[11px] text-center mt-3">
+                  <p className="text-[11px] text-center mt-3" style={{ color: "#E05A4A" }}>
                     {validation.message}
                   </p>
                 )}
@@ -375,10 +382,11 @@ export default function HomePage() {
           {mode === "join" && (
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between mb-1">
-                <label className="text-xs text-muted">الغرف المفتوحة</label>
+                <label className="text-xs" style={{ color: "#8A93A6" }}>الغرف المفتوحة</label>
                 <button
                   onClick={loadOpenRooms}
-                  className="text-[11px] text-gold"
+                  className="text-[11px]"
+                  style={{ color: "#C9A227" }}
                   type="button"
                 >
                   {roomsLoading ? "..." : "تحديث"}
@@ -386,13 +394,13 @@ export default function HomePage() {
               </div>
 
               {roomsLoading && openRooms.length === 0 && (
-                <p className="text-xs text-muted text-center py-4">
+                <p className="text-xs text-center py-4" style={{ color: "#8A93A6" }}>
                   جارٍ البحث عن غرف...
                 </p>
               )}
 
               {!roomsLoading && openRooms.length === 0 && (
-                <p className="text-xs text-muted text-center py-4">
+                <p className="text-xs text-center py-4" style={{ color: "#8A93A6" }}>
                   لا توجد غرف مفتوحة حاليًا.
                 </p>
               )}
@@ -407,14 +415,15 @@ export default function HomePage() {
                         full || name.trim().length < 2 || joiningCode !== null
                       }
                       onClick={() => handleJoin(r.code)}
-                      className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-sm bg-panel border border-border disabled:opacity-40 text-right"
+                      className="w-full flex items-center justify-between rounded-xl px-4 py-3 text-sm disabled:opacity-40 text-right"
+                      style={{ background: "#141B26", border: "1px solid #2A3342" }}
                     >
                       <span className="flex flex-col items-start">
-                        <span className="font-bold text-cream">
+                        <span className="font-bold" style={{ color: "#EDEAE0" }}>
                           غرفة {r.host_name}
                         </span>
                       </span>
-                      <span className="text-xs text-gold" dir="ltr">
+                      <span className="text-xs" style={{ color: "#C9A227" }} dir="ltr">
                         {joiningCode === r.code
                           ? "..."
                           : full
@@ -428,18 +437,19 @@ export default function HomePage() {
             </div>
           )}
 
-          {error && <p className="text-mafia text-xs text-center">{error}</p>}
+          {error && <p className="text-xs text-center" style={{ color: "#E05A4A" }}>{error}</p>}
 
           {mode === "create" && (
             <button
               disabled={loading || name.trim().length < 2 || !validation.valid}
               onClick={handleCreate}
-              className="rounded-xl py-3 font-bold bg-gold text-ink disabled:opacity-50"
+              className="rounded-xl py-3 font-bold disabled:opacity-50"
+              style={{ background: "#C9A227", color: "#0B0E14" }}
             >
               {loading ? "جارٍ التنفيذ..." : "إنشاء"}
             </button>
           )}
-          <button onClick={() => setMode("idle")} className="text-xs text-muted">
+          <button onClick={() => setMode("idle")} className="text-xs" style={{ color: "#8A93A6" }}>
             رجوع
           </button>
         </div>

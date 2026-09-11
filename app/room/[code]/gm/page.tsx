@@ -243,7 +243,10 @@ export default function GmDashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-muted text-sm">
+      <main
+        className="min-h-screen flex items-center justify-center text-sm"
+        style={{ background: "#0B0E14", color: "#8A93A6" }}
+      >
         جارٍ التحميل...
       </main>
     );
@@ -251,11 +254,15 @@ export default function GmDashboardPage() {
 
   if (error || !room) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-6 gap-4">
-        <p className="text-mafia text-sm text-center">{error}</p>
+      <main
+        className="min-h-screen flex flex-col items-center justify-center px-6 gap-4"
+        style={{ background: "#0B0E14" }}
+      >
+        <p className="text-sm text-center" style={{ color: "#E05A4A" }}>{error}</p>
         <button
           onClick={() => router.push("/")}
-          className="text-xs text-gold border border-gold rounded-full px-4 py-2"
+          className="text-xs rounded-full px-4 py-2 border"
+          style={{ color: "#C9A227", borderColor: "#C9A227" }}
         >
           رجوع للرئيسية
         </button>
@@ -285,39 +292,39 @@ export default function GmDashboardPage() {
   }
 
   return (
-    <main className="min-h-screen px-5 py-4 max-w-md mx-auto">
+    <main className="min-h-screen px-5 py-4 max-w-md mx-auto" style={{ background: "#0B0E14" }}>
       <div className="text-center mb-6">
-        <div className="text-[11px] tracking-[0.3em] text-muted mb-1">
+        <div className="text-[11px] tracking-[0.3em] mb-1" style={{ color: "#8A93A6" }}>
           👑 لوحة الحكم
         </div>
-        <div className="font-display text-2xl text-gold mb-2">
+        <div className="font-display text-2xl mb-2" style={{ color: "#C9A227" }}>
           الجولة {room.round_number}
         </div>
         <div
           dir="ltr"
           className="inline-flex text-xs px-3 py-1 rounded-full"
-          style={{ background: "#FDFBF6", border: "1px solid #DED4B8", color: "#8B7F68" }}
+          style={{ background: "#141B26", border: "1px solid #2A3342", color: "#8A93A6" }}
         >
           الأحياء: {aliveCount}/{players.length}
         </div>
       </div>
 
       {actionError && (
-        <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
+        <p className="text-xs text-center mb-3" style={{ color: "#E05A4A" }}>{actionError}</p>
       )}
 
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => router.push(`/room/${code}/discussion`)}
           className="flex-1 rounded-xl py-3 text-sm font-bold"
-          style={{ background: "#FDFBF6", border: "1px solid #B6963F", color: "#B6963F" }}
+          style={{ background: "#141B26", border: "1px solid #C9A227", color: "#C9A227" }}
         >
           🎙️ إدارة النقاش
         </button>
         <button
           onClick={startVoting}
           className="flex-1 rounded-xl py-3 text-sm font-bold"
-          style={{ background: "#FDFBF6", border: "1px solid #B2564C", color: "#B2564C" }}
+          style={{ background: "#141B26", border: "1px solid #E05A4A", color: "#E05A4A" }}
         >
           🗳️ تصويت
         </button>
@@ -331,8 +338,8 @@ export default function GmDashboardPage() {
               key={p.id}
               className="flex items-center gap-3 rounded-lg px-3 py-2.5"
               style={{
-                background: "#FDFBF6",
-                border: "1px solid #DED4B8",
+                background: "#141B26",
+                border: "1px solid #2A3342",
                 opacity: p.is_alive ? 1 : 0.45,
               }}
             >
@@ -347,12 +354,12 @@ export default function GmDashboardPage() {
               ) : (
                 <div
                   className="rounded-full"
-                  style={{ width: 30, height: 30, background: "#DED4B8" }}
+                  style={{ width: 30, height: 30, background: "#2A3342" }}
                 />
               )}
               <span className="flex flex-col flex-1">
-                <span className="text-sm text-cream">{p.name}</span>
-                <span className="text-[11px] text-muted">
+                <span className="text-sm" style={{ color: "#EDEAE0" }}>{p.name}</span>
+                <span className="text-[11px]" style={{ color: "#8A93A6" }}>
                   {def ? def.nameAr : "بدون دور"}
                 </span>
               </span>
@@ -360,8 +367,8 @@ export default function GmDashboardPage() {
                 className="text-[11px] px-2 py-1 rounded-full"
                 style={{
                   background:
-                    p.team === "mafia" ? "#B2564C33" : "#5C8E7B33",
-                  color: p.team === "mafia" ? "#B2564C" : "#5C8E7B",
+                    p.team === "mafia" ? "#E05A4A33" : "#3FA37A33",
+                  color: p.team === "mafia" ? "#E05A4A" : "#3FA37A",
                 }}
               >
                 {p.team === "mafia" ? "مافيا" : p.team === "civilian" ? "شعب" : "—"}
@@ -373,23 +380,24 @@ export default function GmDashboardPage() {
         })}
       </div>
 
-      <div className="text-[11px] tracking-[0.2em] text-muted mt-8 mb-2 text-center">
+      <div className="text-[11px] tracking-[0.2em] mt-8 mb-2 text-center" style={{ color: "#8A93A6" }}>
         ⚙️ أدوات الحكم
       </div>
       <div className="flex flex-col gap-1.5">
         {players.map((p) => (
           <div
             key={p.id + "-tool"}
-            className="flex items-center justify-between rounded-lg px-3 py-2 bg-panel border border-border"
+            className="flex items-center justify-between rounded-lg px-3 py-2"
+            style={{ background: "#141B26", border: "1px solid #2A3342" }}
           >
-            <span className="text-xs text-cream">{p.name}</span>
+            <span className="text-xs" style={{ color: "#EDEAE0" }}>{p.name}</span>
             <button
               onClick={() => toggleAlive(p)}
               className="text-[11px] px-3 py-1.5 rounded-full font-bold"
               style={{
-                background: p.is_alive ? "#B2564C22" : "#5C8E7B22",
-                color: p.is_alive ? "#B2564C" : "#5C8E7B",
-                border: `1px solid ${p.is_alive ? "#B2564C66" : "#5C8E7B66"}`,
+                background: p.is_alive ? "#E05A4A22" : "#3FA37A22",
+                color: p.is_alive ? "#E05A4A" : "#3FA37A",
+                border: `1px solid ${p.is_alive ? "#E05A4A66" : "#3FA37A66"}`,
               }}
             >
               {p.is_alive ? "إخراج من اللعبة" : "إعادة إحياء"}
@@ -404,8 +412,8 @@ export default function GmDashboardPage() {
         className="w-full rounded-xl py-3 text-xs font-bold mt-8 disabled:opacity-40"
         style={{
           background: "transparent",
-          border: "1px solid #B2564C",
-          color: "#B2564C",
+          border: "1px solid #E05A4A",
+          color: "#E05A4A",
         }}
       >
         {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}

@@ -286,7 +286,10 @@ export default function LobbyPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center text-muted text-sm">
+      <main
+        className="min-h-screen flex items-center justify-center text-sm"
+        style={{ background: "#0B0E14", color: "#8A93A6" }}
+      >
         جارٍ التحميل...
       </main>
     );
@@ -294,13 +297,17 @@ export default function LobbyPage() {
 
   if (kicked) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-6 gap-4">
-        <p className="text-mafia text-sm text-center">
+      <main
+        className="min-h-screen flex flex-col items-center justify-center px-6 gap-4"
+        style={{ background: "#0B0E14" }}
+      >
+        <p className="text-sm text-center" style={{ color: "#E05A4A" }}>
           تم إخراجك من هذه الغرفة من قبل الحكم.
         </p>
         <button
           onClick={() => router.push("/")}
-          className="text-xs text-gold border border-gold rounded-full px-4 py-2"
+          className="text-xs rounded-full px-4 py-2 border"
+          style={{ color: "#C9A227", borderColor: "#C9A227" }}
         >
           رجوع للرئيسية
         </button>
@@ -310,11 +317,15 @@ export default function LobbyPage() {
 
   if (error || !room) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-6 gap-4">
-        <p className="text-mafia text-sm text-center">{error}</p>
+      <main
+        className="min-h-screen flex flex-col items-center justify-center px-6 gap-4"
+        style={{ background: "#0B0E14" }}
+      >
+        <p className="text-sm text-center" style={{ color: "#E05A4A" }}>{error}</p>
         <button
           onClick={() => router.push("/")}
-          className="text-xs text-gold border border-gold rounded-full px-4 py-2"
+          className="text-xs rounded-full px-4 py-2 border"
+          style={{ color: "#C9A227", borderColor: "#C9A227" }}
         >
           رجوع للرئيسية
         </button>
@@ -351,23 +362,23 @@ export default function LobbyPage() {
       />
       <div
         className="fixed inset-0 -z-10"
-        style={{ background: "rgba(247, 236, 217, 0.82)" }}
+        style={{ background: "rgba(11, 14, 20, 0.88)" }}
       />
       {actionError && (
-        <p className="text-mafia text-xs text-center mb-3">{actionError}</p>
+        <p className="text-xs text-center mb-3" style={{ color: "#E05A4A" }}>{actionError}</p>
       )}
       {/* صندوق الحكم — منفصل تمامًا عن عدّاد اللاعبين */}
       {hostPlayer && (
         <div className="flex justify-center mb-3">
           <div
             className="flex items-center gap-2 rounded-full px-5 py-2"
-            style={{ background: "#FCEFC7", border: "1px solid #B6963F" }}
+            style={{ background: "#141B26", border: "1px solid #C9A227" }}
           >
             <span className="text-base">👑</span>
-            <span className="text-sm font-bold" style={{ color: "#B6963F" }}>
+            <span className="text-sm font-bold" style={{ color: "#C9A227" }}>
               الحكم
             </span>
-            <span className="text-sm" style={{ color: "#2B2117" }}>
+            <span className="text-sm" style={{ color: "#EDEAE0" }}>
               {hostPlayer.name}
             </span>
           </div>
@@ -379,7 +390,7 @@ export default function LobbyPage() {
           <button
             onClick={shareRoom}
             className="flex items-center gap-1.5 text-xs px-4 py-2 rounded-full"
-            style={{ border: "1px solid #DED4B8", color: "#8B7F68" }}
+            style={{ border: "1px solid #2A3342", color: "#8A93A6" }}
           >
             🔗 مشاركة رابط الدعوة
           </button>
@@ -388,19 +399,20 @@ export default function LobbyPage() {
 
       {/* العدّاد بالنص فوق — dir=ltr لتفادي مشكلة انعكاس الأرقام بالـ RTL */}
       <div className="text-center mb-6">
-        <div className="text-[11px] tracking-[0.3em] text-muted mb-1">
+        <div className="text-[11px] tracking-[0.3em] mb-1" style={{ color: "#8A93A6" }}>
           عدد اللاعبين
         </div>
         <div
           dir="ltr"
-          className="font-display text-4xl text-gold inline-block"
+          className="font-display text-4xl inline-block"
+          style={{ color: "#C9A227" }}
         >
           {regularPlayers.length}
-          <span className="text-muted text-2xl mx-1">/</span>
+          <span className="text-2xl mx-1" style={{ color: "#8A93A6" }}>/</span>
           {total}
         </div>
         {isHost && (
-          <p className="text-[11px] text-muted mt-2">
+          <p className="text-[11px] mt-2" style={{ color: "#8A93A6" }}>
             اضغط على أي لاعب لطرده من الغرفة
           </p>
         )}
@@ -423,7 +435,7 @@ export default function LobbyPage() {
               {filled && (
                 <span
                   className="text-[11px] leading-tight text-center break-all max-w-full px-0.5"
-                  style={{ color: isMe ? "#B6963F" : "#2B2117" }}
+                  style={{ color: isMe ? "#C9A227" : "#EDEAE0" }}
                 >
                   {p!.name}
                 </span>
@@ -431,9 +443,9 @@ export default function LobbyPage() {
               <div
                 className="aspect-square w-full rounded-lg flex items-center justify-center overflow-hidden"
                 style={{
-                  background: filled ? "#FDFBF6" : "transparent",
+                  background: filled ? "#141B26" : "transparent",
                   border: `1px solid ${
-                    isMe ? "#B6963F" : filled ? "#DED4B8" : "#F3ECDC"
+                    isMe ? "#C9A227" : filled ? "#2A3342" : "#1E2733"
                   }`,
                 }}
               >
@@ -445,7 +457,7 @@ export default function LobbyPage() {
                     style={{ transition: "opacity 0.3s ease" }}
                   />
                 ) : (
-                  <span className="text-border text-lg">·</span>
+                  <span className="text-lg" style={{ color: "#2A3342" }}>·</span>
                 )}
               </div>
             </div>
@@ -461,9 +473,9 @@ export default function LobbyPage() {
             onClick={toggleReady}
             className="w-full rounded-xl py-3 text-sm font-bold mb-3"
             style={{
-              background: me.is_ready ? "transparent" : "#B6963F",
-              border: me.is_ready ? "1px solid #DED4B8" : "none",
-              color: me.is_ready ? "#8B7F68" : "#2B2117",
+              background: me.is_ready ? "transparent" : "#C9A227",
+              border: me.is_ready ? "1px solid #2A3342" : "none",
+              color: me.is_ready ? "#8A93A6" : "#0B0E14",
             }}
           >
             {me.is_ready ? "إلغاء الاستعداد" : "مستعد"}
@@ -473,8 +485,8 @@ export default function LobbyPage() {
             className="w-full rounded-xl py-3 text-xs font-bold"
             style={{
               background: "transparent",
-              border: "1px solid #DED4B8",
-              color: "#8B7F68",
+              border: "1px solid #2A3342",
+              color: "#8A93A6",
             }}
           >
             الخروج من الغرفة
@@ -488,7 +500,7 @@ export default function LobbyPage() {
             disabled={!canStart || starting}
             onClick={startGame}
             className="w-full rounded-xl py-3 text-sm font-bold mb-3 disabled:opacity-40"
-            style={{ background: "#B2564C", color: "#FDFBF6" }}
+            style={{ background: "#E05A4A", color: "#EDEAE0" }}
           >
             {starting
               ? "جارٍ توزيع الأدوار..."
@@ -505,8 +517,8 @@ export default function LobbyPage() {
             className="w-full rounded-xl py-3 text-xs font-bold disabled:opacity-40"
             style={{
               background: "transparent",
-              border: "1px solid #B2564C",
-              color: "#B2564C",
+              border: "1px solid #E05A4A",
+              color: "#E05A4A",
             }}
           >
             {closing ? "جارٍ الإغلاق..." : "إغلاق الغرفة وحذفها"}
